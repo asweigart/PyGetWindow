@@ -1,0 +1,6 @@
+This is a file for random notes for this project:
+
+Finding window titles on Windows:
+
+http://stackoverflow.com/questions/37501191/how-to-get-windows-window-names-with-ctypes-in-python
+
