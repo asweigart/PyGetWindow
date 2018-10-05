@@ -1,6 +1,8 @@
 # PyGetWindow
 # A cross-platform module to find information about the windows on the screen.
 
+"""
+
 # Work in progress
 
 # Useful info:
@@ -8,7 +10,11 @@
 #https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
 
 
-"""
+win32 api and ctypes on Windows
+cocoa api and pyobjc on Mac
+Xlib on linux
+
+
 Features:
 get foreground/focused window
 get window by xy or caption title
@@ -35,7 +41,7 @@ UNFOCUSED = 'unfocused'
 
 CLOSED = 'closed'
 
-def getWindow(xOrCaption=None, y=None):
+def getWindowaAt(xOrCaption=None, y=None):
     """Returns a Window object
 
     Args:
@@ -50,9 +56,26 @@ def getWindow(xOrCaption=None, y=None):
         caption = None
 
 
-def getWindows():
+def getWindowsWithCaption(caption):
+    """Returns a tuple of
+    """
+    pass
+
+def getAllWindows():
     """Returns all windows"""
     pass
+
+
+def maximizeForegroundWindow():
+    # NOTE - this is mostly just an experiment
+    # code is from https://stackoverflow.com/questions/2790825/how-can-i-maximize-a-specific-window-with-python
+    import ctypes
+    user32 = ctypes.WinDLL('user32')
+    SW_MAXIMIZE = 3 # More docs on this at https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-showwindow
+    hWnd = user32.GetForegroundWindow()
+    user32.ShowWindow(hWnd, SW_MAXIMIZE)
+
+
 
 
 # NOTE - YES, I *do* want an OOP approach here.
@@ -63,6 +86,10 @@ class Window():
         self.state = None # one of: MINIMIZED, MAXIMIZED, FOCUSED, UNFOCUSED, CLOSED
         self.size = None
         self.topleft = None # have all the other rect properties
+        self.top = None
+        self.left = None
+        self.width = None
+        self.height = None
 
     def close(self):
         pass
@@ -115,4 +142,4 @@ class Window():
             raise ValueError('rate must be greater than 0.')
         self._rate = rate
 
-    rate = property(_propGetRate, _propSetRate)
+    rate = property(_propGetState, _propSetState)

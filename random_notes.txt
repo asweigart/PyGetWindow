@@ -4,3 +4,153 @@ Finding window titles on Windows:
 
 http://stackoverflow.com/questions/37501191/how-to-get-windows-window-names-with-ctypes-in-python
 
+
+
+https://stackoverflow.com/questions/8251712/is-there-a-way-to-move-a-window-to-another-monitor-using-python
+
+A lot of stuff in Winuser.h:ddwdwdwdw
+* EnumWindows to enumerate all of the top-level windows in the system; search for the one you want and save off the window handle
+* EnumDisplayMonitors to enumerate all of the monitors in the system
+* GetMonitorInfo to get the virtual display coordinates of a monitor and to determine whether or not each monitor is the primary monitor
+* MoveWindow to move the window to the desired virtual display coordinates, using the window handle you found earlier
+
+https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
+* GetWindowRect to get window size
+
+https://www.blog.pythonlibrary.org/2014/10/20/pywin32-how-to-bring-a-window-to-front/
+How to bring a window to the front?
+
+QUESTIONS TO POST ON STACK OVERFLOW:
+How to get a list of all windows?
+How to move a window?
+How to resize a window?
+How to get the window position and size?
+How to maximize/minimize/close a window?
+How to read the window title/caption text?
+How to bring a window to the front?
+How to tell if a window is maximized/minimized?
+How to get screen resolution?
+
+
+
+
+-How to get a list of all windows? (Windows)
+https://stackoverflow.com/questions/37501191/how-to-get-windows-window-names-with-ctypes-in-python
+
+-How to get a list of all windows? (Mac)
+https://stackoverflow.com/questions/49223167/get-all-available-mac-id-of-windows-using-python
+
+-How to get a list of all windows? (Linux)
+
+
+
+-How to move a window? (Windows)
+https://stackoverflow.com/questions/8251712/is-there-a-way-to-move-a-window-to-another-monitor-using-python
+
+-How to move a window? (Mac)
+https://stackoverflow.com/questions/16598551/os-x-move-window-from-python
+https://stackoverflow.com/questions/614185/window-move-and-resize-apis-in-os-x?noredirect=1&lq=1
+
+-How to move a window? (Linux)
+https://stackoverflow.com/questions/23850499/how-to-move-or-resize-x11-windows-even-if-they-are-maximized
+
+-How to resize a window? (Windows)
+
+
+-How to resize a window? (Mac)
+
+
+-How to resize a window? (Linux)
+https://stackoverflow.com/questions/23850499/how-to-move-or-resize-x11-windows-even-if-they-are-maximized
+
+-How to get the window position and size? (Windows)
+!!!https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
+https://stackoverflow.com/questions/42215286/python-retrieve-active-window-position-and-size-osx-and-windows
+!!!https://stackoverflow.com/questions/3646362/how-to-control-the-size-of-the-windows-shell-window-from-within-a-python-script
+
+-How to get the window position and size? (Mac)
+!!!https://stackoverflow.com/questions/42215286/python-retrieve-active-window-position-and-size-osx-and-windows
+
+-How to get the window position and size? (Linux)
+https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
+
+-How to maximize/minimize a window? (Windows)
+
+
+-How to maximize/minimize a window? (Mac)
+
+
+-How to maximize/minimize a window? (Linux)
+
+
+-How to close a window? (Windows)
+
+
+-How to close a window? (Linux)
+
+
+-How to close a window? (Mac)
+
+
+-How to read the window title/caption text? (Windows)
+
+
+-How to read the window title/caption text? (Mac)
+
+
+-How to read the window title/caption text? (Linux)
+
+
+-How to bring a window to the front? (Windows)
+https://www.blog.pythonlibrary.org/2014/10/20/pywin32-how-to-bring-a-window-to-front/
+
+-How to bring a window to the front? (Mac)
+
+
+-How to bring a window to the front? (Linux)
+
+
+-How to tell if a window is maximized/minimized? (Windows)
+
+
+-How to tell if a window is maximized/minimized? (Mac)
+
+
+-How to tell if a window is maximized/minimized? (Linux)
+
+
+-How to get screen resolution? (Windows)
+
+
+-How to get screen resolution? (Mac)
+
+
+-How to get screen resolution? (Linux)
+
+
+
+CONTROL WINDOW FROM X11
+https://stackoverflow.com/questions/6173921/how-to-manage-my-application-window-with-python-xlib
+
+FIND ACTIVE WINDOW (MAC)
+https://stackoverflow.com/questions/373020/finding-the-current-active-window-in-mac-os-x-using-python
+
+GET TITLE OF ACTIVE WINDOW (WIN AND MAC)
+https://stackoverflow.com/questions/480866/get-the-title-of-the-current-active-window-document-in-mac-os-x?noredirect=1&lq=1
+
+
+MISC:
+
+!!!https://stackoverflow.com/questions/45348949/getting-local-mouse-position-within-window-with-python
+
+!!!https://stackoverflow.com/questions/16876926/how-to-position-an-independent-window-in-an-exact-location-on-the-screen
+
+!!!https://stackoverflow.com/questions/6196255/how-can-i-get-the-window-at-a-certain-x-y-position-with-python-and-pygtk-pygdk
+
+!!!https://stackoverflow.com/questions/48306887/find-x-and-y-location-of-window-pane-using-python
+
+
+
+SCREENSHOT:
+https://stackoverflow.com/questions/3260559/how-to-get-a-window-or-fullscreen-screenshot-in-python-3k-without-pil
+
