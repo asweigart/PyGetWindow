@@ -40,8 +40,6 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     >>> notepadWindow = gw.getWindowsWithTitle('Untitled')[0]
     >>> notepadWindow.isMaximized
     False
-    >>> notepadWindow.maximize
-    <bound method Win32Window.maximize of Win32Window(hWnd=264354)>
     >>> notepadWindow.maximize()
     >>> notepadWindow.isMaximized
     True
