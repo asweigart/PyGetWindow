@@ -19,7 +19,7 @@ Possible Future Features:
 get/click menu (win32: GetMenuItemCount, GetMenuItemInfo, GetMenuItemID, GetMenu, GetMenuItemRect)
 """
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 import sys
 
@@ -34,9 +34,9 @@ def pointInRect(x, y, left, top, width, height):
 
 
 if sys.platform == 'darwin':
-    raise NotImplementedError() # TODO - implement mac
+    raise NotImplementedError('PyGetWindow currently does not support macOS. If you have Appkit/Cocoa knowledge, please contribute! https://github.com/asweigart/pygetwindow') # TODO - implement mac
 elif sys.platform == 'win32':
     from ._pygetwindow_win import Win32Window, getFocusedWindow, getWindowsAt, getWindowsWithTitle, getAllWindows, getAllTitles
     Window = Win32Window
 else:
-    raise NotImplementedError() # TODO - implement linux
+    raise NotImplementedError('PyGetWindow currently does not support Linux. If you have Xlib knowledge, please contribute! https://github.com/asweigart/pygetwindow')

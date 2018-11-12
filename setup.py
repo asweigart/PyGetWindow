@@ -23,7 +23,7 @@ setup(
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     test_suite='tests',
-    install_requires=[],
+    install_requires=['pyrect==0.1.3'],
     keywords="gui window geometry resize minimize maximize close title",
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -37,6 +37,8 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7'
     ],
