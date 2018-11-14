@@ -25,6 +25,12 @@ HWND_TOP = 0
 # Window Message constants:
 WM_CLOSE = 0x0010
 
+# This ctypes structure is for a Win32 POINT structure,
+# which is documented here: http://msdn.microsoft.com/en-us/library/windows/desktop/dd162805(v=vs.85).aspx
+# The POINT structure is used by GetCursorPos().
+class POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long),
+                ("y", ctypes.c_long)]
 
 enumWindows = ctypes.windll.user32.EnumWindows
 enumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.POINTER(ctypes.c_int))
@@ -511,3 +517,49 @@ class Win32Window():
     def box(self, value):
         self._rect.box # Run rect's onRead to update the Rect object.
         self._rect.box = value
+
+
+def cursor():
+    """Returns the current xy coordinates of the mouse cursor as a two-integer
+    tuple by calling the GetCursorPos() win32 function.
+
+    Returns:
+      (x, y) tuple of the current xy coordinates of the mouse cursor.
+    """
+
+    cursor = POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
+    return (cursor.x, cursor.y)
+
+
+def resolution():
+    """Returns the width and height of the screen as a two-integer tuple.
+
+    Returns:
+      (width, height) tuple of the screen size, in pixels.
+    """
+    return (ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
+
+'''
+def displayWindowsUnderMouse(xOffset=0, yOffset=0):
+    """This function is meant to be run from the command line. It will
+    automatically display the location and RGB of the mouse cursor."""
+    print('Press Ctrl-C to quit.')
+    if xOffset != 0 or yOffset != 0:
+        print('xOffset: %s yOffset: %s' % (xOffset, yOffset))
+    resolution = size()
+    try:
+        while True:
+            # Get and print the mouse coordinates.
+            x, y = position()
+            positionStr = 'X: ' + str(x - xOffset).rjust(4) + ' Y: ' + str(y - yOffset).rjust(4)
+
+            # TODO - display windows under the mouse
+
+            sys.stdout.write(positionStr)
+            sys.stdout.write('\b' * len(positionStr))
+            sys.stdout.flush()
+    except KeyboardInterrupt:
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+'''
