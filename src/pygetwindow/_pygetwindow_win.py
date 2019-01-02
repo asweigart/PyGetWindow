@@ -161,7 +161,7 @@ def getFocusedWindow():
 
 
 def getWindowsAt(x, y):
-    """Returns a tuple of Window objects
+    """Returns a list of Window objects
 
     Args:
       x (int, optional): The x position of the window(s).
@@ -170,28 +170,28 @@ def getWindowsAt(x, y):
     for window in getAllWindows():
         if pygetwindow.pointInRect(x, y, window.left, window.top, window.width, window.height):
             windowsAtXY.append(window)
-    return tuple(windowsAtXY)
+    return windowsAtXY
 
 
 def getWindowsWithTitle(title):
-    """Returns a tuple of Window objects that substring match the title.
+    """Returns a list of Window objects that substring match the title.
     """
     hWndsAndTitles = _getAllTitles()
     windowObjs = []
     for hWnd, winTitle in hWndsAndTitles:
         if title.upper() in winTitle.upper(): # do a case-insensitive match
             windowObjs.append(Win32Window(hWnd))
-    return tuple(windowObjs)
+    return windowObjs
 
 
 def getAllTitles():
-    """Returns a tuple of strings of window titles for all visible windows.
+    """Returns a list of strings of window titles for all visible windows.
     """
-    return tuple([window.title for window in getAllWindows()])
+    return [window.title for window in getAllWindows()]
 
 
 def getAllWindows():
-    """Returns a tuple of Window objects for all visible windows.
+    """Returns a list of Window objects for all visible windows.
     """
     windowObjs = []
     def foreach_window(hWnd, lParam):
@@ -200,7 +200,7 @@ def getAllWindows():
         return True
     enumWindows(enumWindowsProc(foreach_window), 0)
 
-    return tuple(windowObjs)
+    return windowObjs
 
 
 class Win32Window():
@@ -315,6 +315,11 @@ class Win32Window():
     def title(self):
         """Returns the window title as a string."""
         return _getWindowText(self._hWnd)
+
+    @property
+    def visible(self):
+        return isWindowVisible(self._hWnd)
+
 
 
     # Wrappers for pyrect.Rect object's properties.
