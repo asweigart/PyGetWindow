@@ -22,7 +22,7 @@ get/click menu (win32: GetMenuItemCount, GetMenuItemInfo, GetMenuItemID, GetMenu
 __version__ = '0.0.2'
 
 import sys
-
+import collections
 
 
 class PyGetWindowException(Exception):
@@ -40,3 +40,11 @@ elif sys.platform == 'win32':
     Window = Win32Window
 else:
     raise NotImplementedError('PyGetWindow currently does not support Linux. If you have Xlib knowledge, please contribute! https://github.com/asweigart/pygetwindow')
+
+
+# NOTE: `Rect` is a named tuple for use in Python, while structs.RECT represents
+# the win32 RECT struct. PyRect's Rect class is used for handling changing
+# geometry of rectangular areas.
+Rect = collections.namedtuple('Rect', 'left top right bottom')
+Point = collections.namedtuple('Point', 'x y')
+Size = collections.namedtuple('Size', 'width height')

@@ -1,4 +1,3 @@
-import collections
 import ctypes
 import pyrect
 from ctypes import wintypes # We can't use ctypes.wintypes, we must import wintypes this way.
@@ -37,12 +36,6 @@ enumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.POINTER
 getWindowText = ctypes.windll.user32.GetWindowTextW
 getWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
 isWindowVisible = ctypes.windll.user32.IsWindowVisible
-
-
-
-# NOTE: `Rect` is a named tuple for use in Python, while structs.RECT represents
-# the win32 RECT struct.
-Rect = collections.namedtuple('Rect', 'left top right bottom')
 
 
 class RECT(ctypes.Structure):
@@ -119,7 +112,7 @@ def _getWindowRect(hWnd):
     rect = RECT()
     result = ctypes.windll.user32.GetWindowRect(hWnd, ctypes.byref(rect))
     if result != 0:
-        return Rect(rect.left, rect.top, rect.right, rect.bottom)
+        return pygetwindow.Rect(rect.left, rect.top, rect.right, rect.bottom)
     else:
         _raiseWithLastError()
 
@@ -534,7 +527,7 @@ def cursor():
 
     cursor = POINT()
     ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
-    return (cursor.x, cursor.y)
+    return pygetwindow.Point(x=cursor.x, y=cursor.y)
 
 
 def resolution():
@@ -543,7 +536,7 @@ def resolution():
     Returns:
       (width, height) tuple of the screen size, in pixels.
     """
-    return (ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
+    return pygetwindow.Size(width=ctypes.windll.user32.GetSystemMetrics(0), height=ctypes.windll.user32.GetSystemMetrics(1))
 
 '''
 def displayWindowsUnderMouse(xOffset=0, yOffset=0):
