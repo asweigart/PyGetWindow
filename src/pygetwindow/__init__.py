@@ -19,7 +19,7 @@ Possible Future Features:
 get/click menu (win32: GetMenuItemCount, GetMenuItemInfo, GetMenuItemID, GetMenu, GetMenuItemRect)
 """
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 import sys
 import collections
