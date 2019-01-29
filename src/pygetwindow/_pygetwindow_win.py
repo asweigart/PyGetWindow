@@ -254,8 +254,8 @@ class Win32Window():
         ctypes.windll.user32.ShowWindow(self._hWnd, SW_RESTORE)
 
 
-    def focus(self):
-        """Focus this window and make it the foreground window."""
+    def activate(self):
+        """Activate this window and make it the foreground window."""
         result = ctypes.windll.user32.SetForegroundWindow(self._hWnd)
         if result == 0:
             _raiseWithLastError()
@@ -300,9 +300,9 @@ class Win32Window():
         return ctypes.windll.user32.IsZoomed(self._hWnd) != 0
 
     @property
-    def isFocused(self):
-        """Returns True if the window is currently the focused, foreground window."""
-        return getFocusedWindow() == self
+    def isActive(self):
+        """Returns True if the window is currently the active, foreground window."""
+        return getActiveWindow() == self
 
     @property
     def title(self):
