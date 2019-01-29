@@ -143,8 +143,8 @@ def _getWindowText(hWnd):
     return stringBuffer.value
 
 
-def getFocusedWindow():
-    """Returns a Window object of the currently focused Window."""
+def getActiveWindow():
+    """Returns a Window object of the currently active Window."""
     hWnd = ctypes.windll.user32.GetForegroundWindow()
     if hWnd == 0:
         # TODO - raise error instead

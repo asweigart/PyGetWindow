@@ -1,0 +1,1 @@
+v0.0.4, 2019/01/28 -- Renamed getFocusedWindow() to getActiveWindow().
