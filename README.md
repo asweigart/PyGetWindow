@@ -46,7 +46,7 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     >>> notepadWindow.restore()
     >>> notepadWindow.minimize()
     >>> notepadWindow.restore()
-    >>> notepadWindow.focus()
+    >>> notepadWindow.activate()
     >>> notepadWindow.resize(10, 10) # increase by 10, 10
     >>> notepadWindow.resizeTo(100, 100) # set size to 100x100
     >>> notepadWindow.move(10, 10) # move 10 pixels right and 10 down
