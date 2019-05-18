@@ -1,1 +1,2 @@
+v0.0.5, 2019/05/17 -- Fixed setup.py to read readme.md with the utf-8 encoding explicitly.
 v0.0.4, 2019/01/28 -- Renamed getFocusedWindow() to getActiveWindow(), and other "focus" names to "active".
