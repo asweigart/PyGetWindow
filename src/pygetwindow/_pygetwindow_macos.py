@@ -11,15 +11,15 @@ def getAllTitles():
     return ['%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')) for win in windows]
 
 
-def getFocusedWindow():
-    """Returns a Window object of the currently focused Window."""
+def getActiveWindow():
+    """Returns a Window object of the currently active Window."""
 
     # Source: https://stackoverflow.com/questions/5286274/front-most-window-using-cgwindowlistcopywindowinfo
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     for win in windows:
         if win['kCGWindowLayer'] == 0:
-            return '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')) # Temporary. For now, we'll just return the title of the focused window.
-    raise Exception('Could not find a focused window.') # Temporary hack.
+            return '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')) # Temporary. For now, we'll just return the title of the active window.
+    raise Exception('Could not find an active window.') # Temporary hack.
 
 
 def getWindowsAt(x, y):
@@ -33,7 +33,7 @@ def getWindowsAt(x, y):
 
 
 
-def focusWindow():
+def activate():
     # TEMP - this is not a real api, I'm just using this name to store these notes for now.
 
     # Source: https://stackoverflow.com/questions/7460092/nswindow-makekeyandorderfront-makes-window-appear-but-not-key-or-front?rq=1
@@ -125,8 +125,8 @@ class MacOSWindow():
         ctypes.windll.user32.ShowWindow(self._hWnd, SW_RESTORE)
 
 
-    def focus(self):
-        """Focus this window and make it the foreground window."""
+    def activate(self):
+        """Activate this window and make it the foreground window."""
         result = ctypes.windll.user32.SetForegroundWindow(self._hWnd)
         if result == 0:
             _raiseWithLastError()
@@ -171,9 +171,9 @@ class MacOSWindow():
         return ctypes.windll.user32.IsZoomed(self._hWnd) != 0
 
     @property
-    def isFocused(self):
-        """Returns True if the window is currently the focused, foreground window."""
-        return getFocusedWindow() == self
+    def isActive(self):
+        """Returns True if the window is currently the active, foreground window."""
+        return getActiveWindow() == self
 
     @property
     def title(self):
