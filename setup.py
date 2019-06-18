@@ -1,4 +1,4 @@
-import re
+import re, io
 from setuptools import setup, find_packages
 
 # Load version from module (without loading the whole module)
@@ -7,8 +7,8 @@ with open('src/pygetwindow/__init__.py', 'r') as fd:
                         fd.read(), re.MULTILINE).group(1)
 
 # Read in the README.md for the long description.
-with open('README.md', 'r', encoding='utf-8') as fh:
-    long_description = fh.read()
+with io.open('README.md', encoding='utf-8') as fo:
+    long_description = fo.read()
 
 setup(
     name='PyGetWindow',
