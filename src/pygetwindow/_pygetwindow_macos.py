@@ -69,6 +69,23 @@ def isMinimized():
     # I'm not sure how kCGWindowListOptionOnScreenOnly interferes with this.
     pass
 
+
+def _getWindowByTitle(title, exact=False):
+    """Returns a MacOSWindow object for matched title.
+    
+    :param exact: Whether to only return where title is an exact match.
+    """
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    for win in windows:
+        if exact:
+            if (title == win[Quartz.kCGWindowOwnerName]) or \
+                (title == win.get(Quartz.kCGWindowName, '')):
+                return MacOSWindow(win['kCGWindowNumber'])
+        if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
+            return MacOSWindow(win['kCGWindowNumber'])
+    raise Exception('Could not find a matching window.') # HACK: Temporary hack.
+
+
 def _getWindowRect(hWnd):
     """Returns `Rect` for specified MacOS window based on CGWindowID"""
     # hWnd equivalent in MacOS is CGWindowID
@@ -89,6 +106,7 @@ class MacOSWindow():
         # hWnd equivalent in MacOS is CGWindowID
         # https://developer.apple.com/documentation/coregraphics/cgwindowid?language=objc
         self._hWnd = hWnd
+        self._app = None
 
         def _onRead(attrName):
             r = _getWindowRect(self._hWnd)
@@ -104,6 +122,7 @@ class MacOSWindow():
         r = _getWindowRect(self._hWnd)
         self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
 
+
     def __str__(self):
         r = _getWindowRect(self._hWnd)
         width = r.right - r.left
@@ -116,7 +135,26 @@ class MacOSWindow():
 
 
     def __eq__(self, other):
-        return isinstance(other, Win32Window) and self._hWnd == other._hWnd
+        return isinstance(other, MacOSWindow) and self._hWnd == other._hWnd
+
+
+    @property
+    def app(self):
+        """Represents a running associated NSApplication instance."""
+        if self._app:
+            return self._app
+        else:
+            windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+            for win in windows:
+                if self._hWnd == win['kCGWindowNumber']:
+                    ap = AppKit.NSRunningApplication.\
+                    runningApplicationWithProcessIdentifier_(win['kCGWindowOwnerPID'])
+                    self._app = ap
+                    return ap
+
+    @property
+    def isActive(self):
+        return self.app.active
 
 
     def close(self):
@@ -146,9 +184,8 @@ class MacOSWindow():
 
     def activate(self):
         """Activate this window and make it the foreground window."""
-        result = ctypes.windll.user32.SetForegroundWindow(self._hWnd)
-        if result == 0:
-            _raiseWithLastError()
+        if not self.isActive:
+            self.app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)        
 
 
     def resizeRel(self, widthOffset, heightOffset):
