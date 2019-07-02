@@ -1,11 +1,12 @@
 import Quartz
+import AppKit
 import pygetwindow
+import pyrect
 
 
 def getAllTitles():
     """Returns a list of strings of window titles for all visible windows.
     """
-
     # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     return ['%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')) for win in windows]
@@ -13,12 +14,11 @@ def getAllTitles():
 
 def getActiveWindow():
     """Returns a Window object of the currently active Window."""
-
     # Source: https://stackoverflow.com/questions/5286274/front-most-window-using-cgwindowlistcopywindowinfo
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     for win in windows:
         if win['kCGWindowLayer'] == 0:
-            return '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')) # Temporary. For now, we'll just return the title of the active window.
+            return MacOSWindow(win['kCGWindowNumber'])
     raise Exception('Could not find an active window.') # Temporary hack.
 
 
@@ -33,16 +33,21 @@ def getWindowsAt(x, y):
 
 
 
-def activate():
-    # TEMP - this is not a real api, I'm just using this name to store these notes for now.
+def activate(title):
+    """ Uses the `activateWithOptions_` to bring the window to the foreground.
 
-    # Source: https://stackoverflow.com/questions/7460092/nswindow-makekeyandorderfront-makes-window-appear-but-not-key-or-front?rq=1
-    # Source: https://stackoverflow.com/questions/4905024/is-it-possible-to-bring-window-to-front-without-taking-focus?rq=1
-    pass
+    See https://developer.apple.com/documentation/appkit/nsrunningapplication?language=objc
+    """
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    for win in windows:
+        if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
+            ap = AppKit.NSRunningApplication.\
+                runningApplicationWithProcessIdentifier_(win['kCGWindowOwnerPID'])
+            if not ap.isActive():
+                ap.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
 
 
 def getWindowGeometry(title):
-    # TEMP - this is not a real api, I'm just using this name to stoe these notes for now.
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     for win in windows:
         if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
@@ -51,7 +56,6 @@ def getWindowGeometry(title):
 
 
 def isVisible(title):
-    # TEMP - this is not a real api, I'm just using this name to stoe these notes for now.
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     for win in windows:
         if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
@@ -65,11 +69,26 @@ def isMinimized():
     # I'm not sure how kCGWindowListOptionOnScreenOnly interferes with this.
     pass
 
-# TODO: This class doesn't work yet. I've copied the Win32Window class and will make adjustments as needed here.
+def _getWindowRect(hWnd):
+    """Returns `Rect` for specified MacOS window based on CGWindowID"""
+    # hWnd equivalent in MacOS is CGWindowID
+    # https://developer.apple.com/documentation/coregraphics/cgwindowid?language=objc
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    for win in windows:
+        if hWnd == win['kCGWindowNumber']:
+            w = win['kCGWindowBounds']
+            return pygetwindow.Rect(
+                left=w['X'],
+                top=w['Y'],
+                right=w['X']+w['Width'],
+                bottom=w['Y']+w['Height'])
+
 
 class MacOSWindow():
-    def __init__(self, hWnd):
-        self._hWnd = hWnd # TODO fix this, this is a LP_c_long insead of an int.
+    def __init__(self, hWnd=None):
+        # hWnd equivalent in MacOS is CGWindowID
+        # https://developer.apple.com/documentation/coregraphics/cgwindowid?language=objc
+        self._hWnd = hWnd
 
         def _onRead(attrName):
             r = _getWindowRect(self._hWnd)
