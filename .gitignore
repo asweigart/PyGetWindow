@@ -13,6 +13,7 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+pip-wheel-metadata/
 
 # IDE
 .vscode
