@@ -32,19 +32,13 @@ def getWindowsAt(x, y):
     return matches
 
 
-
 def activate(title):
     """ Uses the `activateWithOptions_` to bring the window to the foreground.
 
     See https://developer.apple.com/documentation/appkit/nsrunningapplication?language=objc
     """
-    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
-    for win in windows:
-        if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
-            ap = AppKit.NSRunningApplication.\
-                runningApplicationWithProcessIdentifier_(win['kCGWindowOwnerPID'])
-            if not ap.isActive():
-                ap.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
+    w = _getWindowByTitle(title)
+    w.activate()
 
 
 def getWindowGeometry(title):
@@ -61,13 +55,11 @@ def isVisible(title):
         if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
             return win['kCGWindowAlpha'] != 0.0
 
-def isMinimized():
-    # TEMP - this is not a real api, I'm just using this name to stoe these notes for now.
-    # Source: https://stackoverflow.com/questions/10258676/how-to-know-whether-a-window-is-minimised-or-not
-    # Use the kCGWindowIsOnscreen to check this. Minimized windows are considered to not be on the screen. (But I'm not sure if there are other situations where a window is "off screen".)
 
-    # I'm not sure how kCGWindowListOptionOnScreenOnly interferes with this.
-    pass
+def isMinimized(title):
+    # https://developer.apple.com/documentation/appkit/nsrunningapplication/1525949-hidden?language=objc
+    w = _getWindowByTitle(title)
+    return w.app.hidden
 
 
 def _getWindowByTitle(title, exact=False):
@@ -121,6 +113,7 @@ class MacOSWindow():
 
         r = _getWindowRect(self._hWnd)
         self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
+        self.__get_kCGWindow_dict()
 
 
     def __str__(self):
@@ -137,6 +130,14 @@ class MacOSWindow():
     def __eq__(self, other):
         return isinstance(other, MacOSWindow) and self._hWnd == other._hWnd
 
+
+    def __get_kCGWindow_dict(self):
+        """Sets the specific keys returned by Quartz for later re-use"""
+        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+        for win in windows:
+            if self._hWnd == win['kCGWindowNumber']:
+                for key, value in win.items():
+                    setattr(self, key, value)
 
     @property
     def app(self):
@@ -162,19 +163,21 @@ class MacOSWindow():
         quit?" dialogs or other actions that prevent the window from
         actually closing. This is identical to clicking the X button on the
         window."""
-        result = ctypes.windll.user32.PostMessageA(self._hWnd, WM_CLOSE, 0, 0)
-        if result == 0:
-            _raiseWithLastError()
+        result = self.app.terminate()
+        if not result:
+            raise Exception("Unable to terminate application")
 
 
     def minimize(self):
         """Minimizes this window."""
-        ctypes.windll.user32.ShowWindow(self._hWnd, SW_MINIMIZE)
+        # https://developer.apple.com/documentation/appkit/nsrunningapplication/1526608-hide?language=objc
+        self.app.hide()
 
 
     def maximize(self):
         """Maximizes this window."""
-        ctypes.windll.user32.ShowWindow(self._hWnd, SW_MAXIMIZE)
+        self.app.unhide()
+        self.activate()
 
 
     def restore(self):

@@ -9,6 +9,9 @@ import time
 
 RUNNING_PYTHON_2 = sys.version_info[0] == 2
 
+if sys.platform != 'win32':
+    pytest.skip("skipping windows-only tests", allow_module_level=True)
+
 try:
     if RUNNING_PYTHON_2:
         import Tkinter as tk
