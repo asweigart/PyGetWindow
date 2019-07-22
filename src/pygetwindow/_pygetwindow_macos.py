@@ -37,7 +37,7 @@ def activate(title):
 
     See https://developer.apple.com/documentation/appkit/nsrunningapplication?language=objc
     """
-    w = _getWindowByTitle(title)
+    w = _getWindowsByTitle(title)[0]
     w.activate()
 
 
@@ -58,23 +58,37 @@ def isVisible(title):
 
 def isMinimized(title):
     # https://developer.apple.com/documentation/appkit/nsrunningapplication/1525949-hidden?language=objc
-    w = _getWindowByTitle(title)
+    w = _getWindowsByTitle(title)[0]
     return w.app.hidden
 
 
-def _getWindowByTitle(title, exact=False):
-    """Returns a MacOSWindow object for matched title.
+def _getAllWindows():
+    """Returns a list of MacOSWindow objects for all visible windows"""
+    matched = []
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    for win in windows:
+        matched.append(MacOSWindow(win['kCGWindowNumber']))
+    if len(matched) > 0:
+        return matched
+    raise Exception('Could not find a window.') # HACK: Temporary hack.
+
+
+def _getWindowsByTitle(title, exact=False):
+    """Returns a list of MacOSWindow objects that substring match the title.
     
     :param exact: Whether to only return where title is an exact match.
     """
+    matched = []
     windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
     for win in windows:
         if exact:
             if (title == win[Quartz.kCGWindowOwnerName]) or \
                 (title == win.get(Quartz.kCGWindowName, '')):
-                return MacOSWindow(win['kCGWindowNumber'])
+                matched.append(MacOSWindow(win['kCGWindowNumber']))
         if title in '%s %s' % (win[Quartz.kCGWindowOwnerName], win.get(Quartz.kCGWindowName, '')):
-            return MacOSWindow(win['kCGWindowNumber'])
+            matched.append(MacOSWindow(win['kCGWindowNumber']))
+    if len(matched) > 0:
+        return matched
     raise Exception('Could not find a matching window.') # HACK: Temporary hack.
 
 

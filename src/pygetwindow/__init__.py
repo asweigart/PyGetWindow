@@ -36,6 +36,7 @@ def pointInRect(x, y, left, top, width, height):
 if sys.platform == 'darwin':
     # raise NotImplementedError('PyGetWindow currently does not support macOS. If you have Appkit/Cocoa knowledge, please contribute! https://github.com/asweigart/pygetwindow') # TODO - implement mac
     from ._pygetwindow_macos import MacOSWindow, getActiveWindow, getWindowsAt, getAllTitles, activate
+    from ._pygetwindow_macos import _getWindowsByTitle as getWindowsWithTitle, _getAllWindows as getAllWindows
     Window = MacOSWindow
 elif sys.platform == 'win32':
     from ._pygetwindow_win import Win32Window, getActiveWindow, getWindowsAt, getWindowsWithTitle, getAllWindows, getAllTitles
