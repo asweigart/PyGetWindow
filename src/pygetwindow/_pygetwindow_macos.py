@@ -82,7 +82,8 @@ def _getWindowRect(hWnd):
     """Returns `Rect` for specified MacOS window based on CGWindowID"""
     # hWnd equivalent in MacOS is CGWindowID
     # https://developer.apple.com/documentation/coregraphics/cgwindowid?language=objc
-    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    # windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID)
     for win in windows:
         if hWnd == win['kCGWindowNumber']:
             w = win['kCGWindowBounds']
@@ -182,7 +183,7 @@ class MacOSWindow():
 
     def restore(self):
         """If maximized or minimized, restores the window to it's normal size."""
-        ctypes.windll.user32.ShowWindow(self._hWnd, SW_RESTORE)
+        self.maximize()
 
 
     def activate(self):
@@ -193,41 +194,36 @@ class MacOSWindow():
 
     def resizeRel(self, widthOffset, heightOffset):
         """Resizes the window relative to its current size."""
-        result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, self.left, self.top, self.width + widthOffset, self.height + heightOffset, 0)
-        if result == 0:
-            _raiseWithLastError()
+        raise NotImplementedError("Method not implemented in MacOS")
 
 
     def resizeTo(self, newWidth, newHeight):
         """Resizes the window to a new width and height."""
-        result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, self.left, self.top, newWidth, newHeight, 0)
-        if result == 0:
-            _raiseWithLastError()
+        raise NotImplementedError("Method not implemented in MacOS")
 
 
     def moveRel(self, xOffset, yOffset):
         """Moves the window relative to its current position."""
-        result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, self.left + xOffset, self.top + yOffset, self.width, self.height, 0)
-        if result == 0:
-            _raiseWithLastError()
+        raise NotImplementedError("Method not implemented in MacOS")
 
 
     def moveTo(self, newLeft, newTop):
         """Moves the window to new coordinates on the screen."""
-        result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, newLeft, newTop, self.width, self.height, 0)
-        if result == 0:
-            _raiseWithLastError()
+        raise NotImplementedError("Method not implemented in MacOS")
 
 
     @property
     def isMinimized(self):
         """Returns True if the window is currently minimized."""
-        return ctypes.windll.user32.IsIconic(self._hWnd) != 0
+        try:
+            return self.app.hidden
+        except AttributeError:
+            return False
 
     @property
     def isMaximized(self):
         """Returns True if the window is currently maximized."""
-        return ctypes.windll.user32.IsZoomed(self._hWnd) != 0
+        raise NotImplementedError("Method not implemented in MacOS")
 
     @property
     def isActive(self):
@@ -237,13 +233,14 @@ class MacOSWindow():
     @property
     def title(self):
         """Returns the window title as a string."""
-        return _getWindowText(self._hWnd)
+        return self.kCGWindowName
 
     @property
     def visible(self):
-        return isWindowVisible(self._hWnd)
-
-
+        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID)
+        for win in windows:
+            if self._hWnd == win[Quartz.kCGWindowNumber]:
+                return win['kCGWindowAlpha'] != 0.0
 
     # Wrappers for pyrect.Rect object's properties.
     @property
