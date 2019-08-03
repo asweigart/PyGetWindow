@@ -153,6 +153,29 @@ def getActiveWindow():
         return Win32Window(hWnd)
 
 
+def getActiveWindowTitle():
+    """Returns a string of the title of the currently active Window."""
+    # NOTE - This function isn't threadsafe because it relies on a global variable. I don't use nonlocal because I want this to work on Python 2.
+
+    global activeWindowTitle
+    activeWindowHwnd = ctypes.windll.user32.GetForegroundWindow()
+    if activeWindowHwnd == 0:
+        # TODO - raise error instead
+        return None # Note that this function doesn't use GetLastError().
+
+    def foreach_window(hWnd, lParam):
+        global activeWindowTitle
+        if hWnd == activeWindowHwnd:
+            length = getWindowTextLength(hWnd)
+            buff = ctypes.create_unicode_buffer(length + 1)
+            getWindowText(hWnd, buff, length + 1)
+            activeWindowTitle =  buff.value
+        return True
+    enumWindows(enumWindowsProc(foreach_window), 0)
+
+    return activeWindowTitle
+
+
 def getWindowsAt(x, y):
     """Returns a list of Window objects
 
