@@ -1,8 +1,8 @@
 import ctypes
-import pyrect
 from ctypes import wintypes # We can't use ctypes.wintypes, we must import wintypes this way.
 
-import pygetwindow
+from pygetwindow import PyGetWindowException, pointInRect, BaseWindow, Rect, Point, Size
+
 
 NULL = 0 # Used to match the Win32 API value of "null".
 
@@ -94,53 +94,7 @@ def _raiseWithLastError():
     """A helper function that raises PyGetWindowException using the error
     information from GetLastError() and FormatMessage()."""
     errorCode = ctypes.windll.kernel32.GetLastError()
-    raise pygetwindow.PyGetWindowException('Error code from Windows: %s - %s' % (errorCode, _formatMessage(errorCode)))
-
-
-def _getWindowRect(hWnd):
-    """A nice wrapper for GetWindowRect(). TODO
-
-    Syntax:
-    BOOL GetWindowRect(
-      HWND   hWnd,
-      LPRECT lpRect
-    );
-
-    Microsoft Documentation:
-    https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getwindowrect
-    """
-    rect = RECT()
-    result = ctypes.windll.user32.GetWindowRect(hWnd, ctypes.byref(rect))
-    if result != 0:
-        return pygetwindow.Rect(rect.left, rect.top, rect.right, rect.bottom)
-    else:
-        _raiseWithLastError()
-
-
-def _getWindowText(hWnd):
-    """A wrapper for the GetWindowTextW() win api. TODO
-
-    Syntax:
-    int GetWindowTextW(
-      HWND   hWnd,
-      LPWSTR lpString,
-      int    nMaxCount
-    );
-
-    int GetWindowTextLengthW(
-      HWND hWnd
-    );
-
-    Microsoft Documentation:
-    https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getwindowtextw
-    https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getwindowtextlengthw
-    """
-    textLenInCharacters = ctypes.windll.user32.GetWindowTextLengthW(hWnd)
-    stringBuffer = ctypes.create_unicode_buffer(textLenInCharacters + 1) # +1 for the \0 at the end of the null-terminated string.
-    ctypes.windll.user32.GetWindowTextW(hWnd, stringBuffer, textLenInCharacters + 1)
-
-    # TODO it's ambiguous if an error happened or the title text is just empty. Look into this later.
-    return stringBuffer.value
+    raise PyGetWindowException('Error code from Windows: %s - %s' % (errorCode, _formatMessage(errorCode)))
 
 
 def getActiveWindow():
@@ -184,7 +138,7 @@ def getWindowsAt(x, y):
       y (int, optional): The y position of the window(s)."""
     windowsAtXY = []
     for window in getAllWindows():
-        if pygetwindow.pointInRect(x, y, window.left, window.top, window.width, window.height):
+        if pointInRect(x, y, window.left, window.top, window.width, window.height):
             windowsAtXY.append(window)
     return windowsAtXY
 
@@ -219,26 +173,34 @@ def getAllWindows():
     return windowObjs
 
 
-class Win32Window():
+class Win32Window(BaseWindow):
     def __init__(self, hWnd):
         self._hWnd = hWnd # TODO fix this, this is a LP_c_long insead of an int.
+        self._setupRectProperties()
 
-        def _onRead(attrName):
-            r = _getWindowRect(self._hWnd)
-            self._rect._left = r.left # Setting _left directly to skip the onRead.
-            self._rect._top = r.top # Setting _top directly to skip the onRead.
-            self._rect._width = r.right - r.left # Setting _width directly to skip the onRead.
-            self._rect._height = r.bottom - r.top # Setting _height directly to skip the onRead.
 
-        def _onChange(oldBox, newBox):
-            self.moveTo(newBox.left, newBox.top)
-            self.resizeTo(newBox.width, newBox.height)
+    def _getWindowRect(self):
+        """A nice wrapper for GetWindowRect(). TODO
 
-        r = _getWindowRect(self._hWnd)
-        self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
+        Syntax:
+        BOOL GetWindowRect(
+          HWND   hWnd,
+          LPRECT lpRect
+        );
+
+        Microsoft Documentation:
+        https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getwindowrect
+        """
+        rect = RECT()
+        result = ctypes.windll.user32.GetWindowRect(self._hWnd, ctypes.byref(rect))
+        if result != 0:
+            return Rect(rect.left, rect.top, rect.right, rect.bottom)
+        else:
+            _raiseWithLastError()
+
 
     def __str__(self):
-        r = _getWindowRect(self._hWnd)
+        r = Win32Window._getWindowRect(self._hWnd)
         width = r.right - r.left
         height = r.bottom - r.top
         return '<%s left="%s", top="%s", width="%s", height="%s", title="%s">' % (self.__class__.__name__, r.left, r.top, width, height, self.title)
@@ -330,214 +292,16 @@ class Win32Window():
     @property
     def title(self):
         """Returns the window title as a string."""
-        return _getWindowText(self._hWnd)
+        textLenInCharacters = ctypes.windll.user32.GetWindowTextLengthW(self._hWnd)
+        stringBuffer = ctypes.create_unicode_buffer(textLenInCharacters + 1) # +1 for the \0 at the end of the null-terminated string.
+        ctypes.windll.user32.GetWindowTextW(self._hWnd, stringBuffer, textLenInCharacters + 1)
+
+        # TODO it's ambiguous if an error happened or the title text is just empty. Look into this later.
+        return stringBuffer.value
 
     @property
     def visible(self):
         return isWindowVisible(self._hWnd)
-
-
-
-    # Wrappers for pyrect.Rect object's properties.
-    @property
-    def left(self):
-        return self._rect.left
-
-    @left.setter
-    def left(self, value):
-        #import pdb; pdb.set_trace()
-        self._rect.left # Run rect's onRead to update the Rect object.
-        self._rect.left = value
-
-
-    @property
-    def right(self):
-        return self._rect.right
-
-    @right.setter
-    def right(self, value):
-        self._rect.right # Run rect's onRead to update the Rect object.
-        self._rect.right = value
-
-
-    @property
-    def top(self):
-        return self._rect.top
-
-    @top.setter
-    def top(self, value):
-        self._rect.top # Run rect's onRead to update the Rect object.
-        self._rect.top = value
-
-
-    @property
-    def bottom(self):
-        return self._rect.bottom
-
-    @bottom.setter
-    def bottom(self, value):
-        self._rect.bottom # Run rect's onRead to update the Rect object.
-        self._rect.bottom = value
-
-
-    @property
-    def topleft(self):
-        return self._rect.topleft
-
-    @topleft.setter
-    def topleft(self, value):
-        self._rect.topleft # Run rect's onRead to update the Rect object.
-        self._rect.topleft = value
-
-
-    @property
-    def topright(self):
-        return self._rect.topright
-
-    @topright.setter
-    def topright(self, value):
-        self._rect.topright # Run rect's onRead to update the Rect object.
-        self._rect.topright = value
-
-
-    @property
-    def bottomleft(self):
-        return self._rect.bottomleft
-
-    @bottomleft.setter
-    def bottomleft(self, value):
-        self._rect.bottomleft # Run rect's onRead to update the Rect object.
-        self._rect.bottomleft = value
-
-
-    @property
-    def bottomright(self):
-        return self._rect.bottomright
-
-    @bottomright.setter
-    def bottomright(self, value):
-        self._rect.bottomright # Run rect's onRead to update the Rect object.
-        self._rect.bottomright = value
-
-
-    @property
-    def midleft(self):
-        return self._rect.midleft
-
-    @midleft.setter
-    def midleft(self, value):
-        self._rect.midleft # Run rect's onRead to update the Rect object.
-        self._rect.midleft = value
-
-
-    @property
-    def midright(self):
-        return self._rect.midright
-
-    @midright.setter
-    def midright(self, value):
-        self._rect.midright # Run rect's onRead to update the Rect object.
-        self._rect.midright = value
-
-
-    @property
-    def midtop(self):
-        return self._rect.midtop
-
-    @midtop.setter
-    def midtop(self, value):
-        self._rect.midtop # Run rect's onRead to update the Rect object.
-        self._rect.midtop = value
-
-
-    @property
-    def midbottom(self):
-        return self._rect.midbottom
-
-    @midbottom.setter
-    def midbottom(self, value):
-        self._rect.midbottom # Run rect's onRead to update the Rect object.
-        self._rect.midbottom = value
-
-
-    @property
-    def center(self):
-        return self._rect.center
-
-    @center.setter
-    def center(self, value):
-        self._rect.center # Run rect's onRead to update the Rect object.
-        self._rect.center = value
-
-
-    @property
-    def centerx(self):
-        return self._rect.centerx
-
-    @centerx.setter
-    def centerx(self, value):
-        self._rect.centerx # Run rect's onRead to update the Rect object.
-        self._rect.centerx = value
-
-
-    @property
-    def centery(self):
-        return self._rect.centery
-
-    @centery.setter
-    def centery(self, value):
-        self._rect.centery # Run rect's onRead to update the Rect object.
-        self._rect.centery = value
-
-
-    @property
-    def width(self):
-        return self._rect.width
-
-    @width.setter
-    def width(self, value):
-        self._rect.width # Run rect's onRead to update the Rect object.
-        self._rect.width = value
-
-
-    @property
-    def height(self):
-        return self._rect.height
-
-    @height.setter
-    def height(self, value):
-        self._rect.height # Run rect's onRead to update the Rect object.
-        self._rect.height = value
-
-
-    @property
-    def size(self):
-        return self._rect.size
-
-    @size.setter
-    def size(self, value):
-        self._rect.size # Run rect's onRead to update the Rect object.
-        self._rect.size = value
-
-
-    @property
-    def area(self):
-        return self._rect.area
-
-    @area.setter
-    def area(self, value):
-        self._rect.area # Run rect's onRead to update the Rect object.
-        self._rect.area = value
-
-
-    @property
-    def box(self):
-        return self._rect.box
-
-    @box.setter
-    def box(self, value):
-        self._rect.box # Run rect's onRead to update the Rect object.
-        self._rect.box = value
 
 
 def cursor():
@@ -550,7 +314,7 @@ def cursor():
 
     cursor = POINT()
     ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
-    return pygetwindow.Point(x=cursor.x, y=cursor.y)
+    return Point(x=cursor.x, y=cursor.y)
 
 
 def resolution():
@@ -559,7 +323,7 @@ def resolution():
     Returns:
       (width, height) tuple of the screen size, in pixels.
     """
-    return pygetwindow.Size(width=ctypes.windll.user32.GetSystemMetrics(0), height=ctypes.windll.user32.GetSystemMetrics(1))
+    return Size(width=ctypes.windll.user32.GetSystemMetrics(0), height=ctypes.windll.user32.GetSystemMetrics(1))
 
 '''
 def displayWindowsUnderMouse(xOffset=0, yOffset=0):
