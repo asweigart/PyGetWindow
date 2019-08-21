@@ -67,3 +67,23 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     (142, 110)
     >>> notepadWindow.close()
     >>>
+
+## MacOS
+MacOS implementation is not yet feature complete and is experimental so YMMV. However, the following is possible.
+
+    >>> import pygetwindow as gw
+    >>> gw.getAllTitles()
+    ['SystemUIServer AppleClockExtra', 'OneDrive Item-0', 'SystemUIServer AirPortExtra', 'MindNode Quick Entry Item-0', 'Tunnelblick Item-0', 'ClickShare Client Item-0', 'Docker Item-0', 'OneDrive Item-0', 'Alfred 3 Item-0', 'VMware Fusion Start Menu Item-0', 'SystemUIServer AppleTimeMachineExtra', 'SystemUIServer AppleVPNExtra', 'SystemUIServer AppleBluetoothExtra', 'SystemUIServer BatteryExtra', 'SystemUIServer AppleVolumeExtra', 'Spotlight Item-0', 'SystemUIServer NotificationCenter', 'Window Server Menubar', 'Dock Dock', 'Code README.md — PyGetWindow', "Safari darth-veitcher/PyGetWindow: A simple, cross-platform module for obtaining GUI information on application's windows.", 'Amazon WorkSpaces Amazon WorkSpaces', 'Slack Slack - MyCompany', 'Finder Data Driven Organisation', 'Microsoft OneNote myname @ MyCompany O365', 'Terminal public — core@asimov:~/coco-annotator — python -m http.server — 161×53', 'Terminal myname — jupyter_mac.command — -bash — 80×24']
+    >>> gw.getAllWindows()
+    [MacOSWindow(hWnd=13408), MacOSWindow(hWnd=53), MacOSWindow(hWnd=3854), MacOSWindow(hWnd=45), MacOSWindow(hWnd=103), MacOSWindow(hWnd=100), MacOSWindow(hWnd=89), MacOSWindow(hWnd=106), MacOSWindow(hWnd=3852), MacOSWindow(hWnd=87), MacOSWindow(hWnd=85), MacOSWindow(hWnd=41), MacOSWindow(hWnd=61), MacOSWindow(hWnd=37), MacOSWindow(hWnd=49), MacOSWindow(hWnd=57), MacOSWindow(hWnd=35), MacOSWindow(hWnd=24), MacOSWindow(hWnd=3), MacOSWindow(hWnd=33), MacOSWindow(hWnd=13264), MacOSWindow(hWnd=13320), MacOSWindow(hWnd=6359), MacOSWindow(hWnd=8566), MacOSWindow(hWnd=9331), MacOSWindow(hWnd=6585), MacOSWindow(hWnd=74), MacOSWindow(hWnd=77)]
+
+As with Windows implementation, MacOS windows can be activated and minimised.
+
+    >>> safari = gw.getWindowsWithTitle('Safari')[0]
+    >>> safari.isActive
+    False
+    >>> safari.activate()
+    >>> safari.activate(); time.sleep(3); safari.isActive
+    True
+    >>> safari.size
+    Size(width=870.0, height=560.0)

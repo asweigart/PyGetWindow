@@ -7,6 +7,7 @@ name = "pypi"
 "win32gui" = "*"
 
 [dev-packages]
+pylint = "*"
 
 [requires]
 python_version = "3.6"
