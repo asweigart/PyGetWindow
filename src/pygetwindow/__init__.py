@@ -1,57 +1,61 @@
 # PyGetWindow
 # A cross-platform module to find information about the windows on the screen.
 
-"""
-
 # Work in progress
 
 # Useful info:
-#https://stackoverflow.com/questions/373020/finding-the-current-active-window-in-mac-os-x-using-python
-#https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
+# https://stackoverflow.com/questions/373020/finding-the-current-active-window-in-mac-os-x-using-python
+# https://stackoverflow.com/questions/7142342/get-window-position-size-with-python
 
 
-win32 api and ctypes on Windows
-cocoa api and pyobjc on Mac
-Xlib on linux
+# win32 api and ctypes on Windows
+# cocoa api and pyobjc on Mac
+# Xlib on linux
 
 
-Possible Future Features:
-get/click menu (win32: GetMenuItemCount, GetMenuItemInfo, GetMenuItemID, GetMenu, GetMenuItemRect)
-"""
+# Possible Future Features:
+# get/click menu (win32: GetMenuItemCount, GetMenuItemInfo, GetMenuItemID, GetMenu, GetMenuItemRect)
 
-__version__ = '0.0.8'
+
+__version__ = "0.0.8"
 
 import sys, collections, pyrect
 
 
 class PyGetWindowException(Exception):
+    """
+    Base class for exceptions raised when PyGetWindow functions
+    encounter a problem. If PyGetWindow raises an exception that isn't
+    this class, that indicates a bug in the module.
+    """
     pass
 
 
 def pointInRect(x, y, left, top, width, height):
+    """Returns ``True`` if the ``(x, y)`` point is within the box described
+    by ``(left, top, width, height)``."""
     return left < x < left + width and top < y < top + height
 
 
 # NOTE: `Rect` is a named tuple for use in Python, while structs.RECT represents
 # the win32 RECT struct. PyRect's Rect class is used for handling changing
 # geometry of rectangular areas.
-Rect = collections.namedtuple('Rect', 'left top right bottom')
-Point = collections.namedtuple('Point', 'x y')
-Size = collections.namedtuple('Size', 'width height')
+Rect = collections.namedtuple("Rect", "left top right bottom")
+Point = collections.namedtuple("Point", "x y")
+Size = collections.namedtuple("Size", "width height")
 
 
 class BaseWindow:
     def __init__(self):
         pass
 
-
     def _setupRectProperties(self):
         def _onRead(attrName):
             r = self._getWindowRect()
-            self._rect._left = r.left # Setting _left directly to skip the onRead.
-            self._rect._top = r.top # Setting _top directly to skip the onRead.
-            self._rect._width = r.right - r.left # Setting _width directly to skip the onRead.
-            self._rect._height = r.bottom - r.top # Setting _height directly to skip the onRead.
+            self._rect._left = r.left  # Setting _left directly to skip the onRead.
+            self._rect._top = r.top  # Setting _top directly to skip the onRead.
+            self._rect._width = r.right - r.left  # Setting _width directly to skip the onRead.
+            self._rect._height = r.bottom - r.top  # Setting _height directly to skip the onRead.
 
         def _onChange(oldBox, newBox):
             self.moveTo(newBox.left, newBox.top)
@@ -60,7 +64,6 @@ class BaseWindow:
         r = self._getWindowRect()
         self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
 
-
     def _getWindowRect(self):
         raise NotImplementedError
 
@@ -68,7 +71,14 @@ class BaseWindow:
         r = self._getWindowRect(self._hWnd)
         width = r.right - r.left
         height = r.bottom - r.top
-        return '<%s left="%s", top="%s", width="%s", height="%s", title="%s">' % (self.__class__.__qualname__, r.left, r.top, width, height, self.title)
+        return '<%s left="%s", top="%s", width="%s", height="%s", title="%s">' % (
+            self.__class__.__qualname__,
+            r.left,
+            r.top,
+            width,
+            height,
+            self.title,
+        )
 
     def close(self):
         """Closes this window. This may trigger "Are you sure you want to
@@ -77,46 +87,37 @@ class BaseWindow:
         window."""
         raise NotImplementedError
 
-
     def minimize(self):
         """Minimizes this window."""
         raise NotImplementedError
-
 
     def maximize(self):
         """Maximizes this window."""
         raise NotImplementedError
 
-
     def restore(self):
         """If maximized or minimized, restores the window to it's normal size."""
         raise NotImplementedError
-
 
     def activate(self):
         """Activate this window and make it the foreground window."""
         raise NotImplementedError
 
-
     def resizeRel(self, widthOffset, heightOffset):
         """Resizes the window relative to its current size."""
         raise NotImplementedError
-
 
     def resizeTo(self, newWidth, newHeight):
         """Resizes the window to a new width and height."""
         raise NotImplementedError
 
-
     def moveRel(self, xOffset, yOffset):
         """Moves the window relative to its current position."""
         raise NotImplementedError
 
-
     def moveTo(self, newLeft, newTop):
         """Moves the window to new coordinates on the screen."""
         raise NotImplementedError
-
 
     @property
     def isMinimized(self):
@@ -142,7 +143,6 @@ class BaseWindow:
     def visible(self):
         raise NotImplementedError
 
-
     # Wrappers for pyrect.Rect object's properties:
     @property
     def left(self):
@@ -150,10 +150,9 @@ class BaseWindow:
 
     @left.setter
     def left(self, value):
-        #import pdb; pdb.set_trace()
-        self._rect.left # Run rect's onRead to update the Rect object.
+        # import pdb; pdb.set_trace()
+        self._rect.left  # Run rect's onRead to update the Rect object.
         self._rect.left = value
-
 
     @property
     def right(self):
@@ -161,9 +160,8 @@ class BaseWindow:
 
     @right.setter
     def right(self, value):
-        self._rect.right # Run rect's onRead to update the Rect object.
+        self._rect.right  # Run rect's onRead to update the Rect object.
         self._rect.right = value
-
 
     @property
     def top(self):
@@ -171,9 +169,8 @@ class BaseWindow:
 
     @top.setter
     def top(self, value):
-        self._rect.top # Run rect's onRead to update the Rect object.
+        self._rect.top  # Run rect's onRead to update the Rect object.
         self._rect.top = value
-
 
     @property
     def bottom(self):
@@ -181,9 +178,8 @@ class BaseWindow:
 
     @bottom.setter
     def bottom(self, value):
-        self._rect.bottom # Run rect's onRead to update the Rect object.
+        self._rect.bottom  # Run rect's onRead to update the Rect object.
         self._rect.bottom = value
-
 
     @property
     def topleft(self):
@@ -191,9 +187,8 @@ class BaseWindow:
 
     @topleft.setter
     def topleft(self, value):
-        self._rect.topleft # Run rect's onRead to update the Rect object.
+        self._rect.topleft  # Run rect's onRead to update the Rect object.
         self._rect.topleft = value
-
 
     @property
     def topright(self):
@@ -201,9 +196,8 @@ class BaseWindow:
 
     @topright.setter
     def topright(self, value):
-        self._rect.topright # Run rect's onRead to update the Rect object.
+        self._rect.topright  # Run rect's onRead to update the Rect object.
         self._rect.topright = value
-
 
     @property
     def bottomleft(self):
@@ -211,9 +205,8 @@ class BaseWindow:
 
     @bottomleft.setter
     def bottomleft(self, value):
-        self._rect.bottomleft # Run rect's onRead to update the Rect object.
+        self._rect.bottomleft  # Run rect's onRead to update the Rect object.
         self._rect.bottomleft = value
-
 
     @property
     def bottomright(self):
@@ -221,9 +214,8 @@ class BaseWindow:
 
     @bottomright.setter
     def bottomright(self, value):
-        self._rect.bottomright # Run rect's onRead to update the Rect object.
+        self._rect.bottomright  # Run rect's onRead to update the Rect object.
         self._rect.bottomright = value
-
 
     @property
     def midleft(self):
@@ -231,9 +223,8 @@ class BaseWindow:
 
     @midleft.setter
     def midleft(self, value):
-        self._rect.midleft # Run rect's onRead to update the Rect object.
+        self._rect.midleft  # Run rect's onRead to update the Rect object.
         self._rect.midleft = value
-
 
     @property
     def midright(self):
@@ -241,9 +232,8 @@ class BaseWindow:
 
     @midright.setter
     def midright(self, value):
-        self._rect.midright # Run rect's onRead to update the Rect object.
+        self._rect.midright  # Run rect's onRead to update the Rect object.
         self._rect.midright = value
-
 
     @property
     def midtop(self):
@@ -251,9 +241,8 @@ class BaseWindow:
 
     @midtop.setter
     def midtop(self, value):
-        self._rect.midtop # Run rect's onRead to update the Rect object.
+        self._rect.midtop  # Run rect's onRead to update the Rect object.
         self._rect.midtop = value
-
 
     @property
     def midbottom(self):
@@ -261,9 +250,8 @@ class BaseWindow:
 
     @midbottom.setter
     def midbottom(self, value):
-        self._rect.midbottom # Run rect's onRead to update the Rect object.
+        self._rect.midbottom  # Run rect's onRead to update the Rect object.
         self._rect.midbottom = value
-
 
     @property
     def center(self):
@@ -271,9 +259,8 @@ class BaseWindow:
 
     @center.setter
     def center(self, value):
-        self._rect.center # Run rect's onRead to update the Rect object.
+        self._rect.center  # Run rect's onRead to update the Rect object.
         self._rect.center = value
-
 
     @property
     def centerx(self):
@@ -281,9 +268,8 @@ class BaseWindow:
 
     @centerx.setter
     def centerx(self, value):
-        self._rect.centerx # Run rect's onRead to update the Rect object.
+        self._rect.centerx  # Run rect's onRead to update the Rect object.
         self._rect.centerx = value
-
 
     @property
     def centery(self):
@@ -291,9 +277,8 @@ class BaseWindow:
 
     @centery.setter
     def centery(self, value):
-        self._rect.centery # Run rect's onRead to update the Rect object.
+        self._rect.centery  # Run rect's onRead to update the Rect object.
         self._rect.centery = value
-
 
     @property
     def width(self):
@@ -301,9 +286,8 @@ class BaseWindow:
 
     @width.setter
     def width(self, value):
-        self._rect.width # Run rect's onRead to update the Rect object.
+        self._rect.width  # Run rect's onRead to update the Rect object.
         self._rect.width = value
-
 
     @property
     def height(self):
@@ -311,9 +295,8 @@ class BaseWindow:
 
     @height.setter
     def height(self, value):
-        self._rect.height # Run rect's onRead to update the Rect object.
+        self._rect.height  # Run rect's onRead to update the Rect object.
         self._rect.height = value
-
 
     @property
     def size(self):
@@ -321,9 +304,8 @@ class BaseWindow:
 
     @size.setter
     def size(self, value):
-        self._rect.size # Run rect's onRead to update the Rect object.
+        self._rect.size  # Run rect's onRead to update the Rect object.
         self._rect.size = value
-
 
     @property
     def area(self):
@@ -331,9 +313,8 @@ class BaseWindow:
 
     @area.setter
     def area(self, value):
-        self._rect.area # Run rect's onRead to update the Rect object.
+        self._rect.area  # Run rect's onRead to update the Rect object.
         self._rect.area = value
-
 
     @property
     def box(self):
@@ -341,17 +322,28 @@ class BaseWindow:
 
     @box.setter
     def box(self, value):
-        self._rect.box # Run rect's onRead to update the Rect object.
+        self._rect.box  # Run rect's onRead to update the Rect object.
         self._rect.box = value
 
 
-
-if sys.platform == 'darwin':
-    #raise NotImplementedError('PyGetWindow currently does not support macOS. If you have Appkit/Cocoa knowledge, please contribute! https://github.com/asweigart/pygetwindow') # TODO - implement mac
+if sys.platform == "darwin":
+    # raise NotImplementedError('PyGetWindow currently does not support macOS. If you have Appkit/Cocoa knowledge, please contribute! https://github.com/asweigart/pygetwindow') # TODO - implement mac
     from ._pygetwindow_macos import *
+
     Window = MacOSWindow
-elif sys.platform == 'win32':
-    from ._pygetwindow_win import Win32Window, getActiveWindow, getActiveWindowTitle, getWindowsAt, getWindowsWithTitle, getAllWindows, getAllTitles
+elif sys.platform == "win32":
+    from ._pygetwindow_win import (
+        Win32Window,
+        getActiveWindow,
+        getActiveWindowTitle,
+        getWindowsAt,
+        getWindowsWithTitle,
+        getAllWindows,
+        getAllTitles,
+    )
+
     Window = Win32Window
 else:
-    raise NotImplementedError('PyGetWindow currently does not support Linux. If you have Xlib knowledge, please contribute! https://github.com/asweigart/pygetwindow')
+    raise NotImplementedError(
+        "PyGetWindow currently does not support Linux. If you have Xlib knowledge, please contribute! https://github.com/asweigart/pygetwindow"
+    )

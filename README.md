@@ -16,7 +16,7 @@ Install
 Examples
 --------
 
-(For this example, I'm using Winodws and opened the Notepad application, which has a title of "Untitled - Notepad". Most of the effects of these functions can't be seen in text.)
+(For this example, I'm using Windows and opened the Notepad application, which has a title of "Untitled - Notepad". Most of the effects of these functions can't be seen in text.)
 
 PyGetWindow has functions for obtaining ``Window`` objects from a place on the screen, from the window title, or just getting all windows. (``hWnd`` is specific to the Windows platform.)
 

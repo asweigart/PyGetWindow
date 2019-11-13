@@ -98,7 +98,7 @@ def _raiseWithLastError():
 
 
 def getActiveWindow():
-    """Returns a Window object of the currently active Window."""
+    """Returns a Window object of the currently active (focused) Window."""
     hWnd = ctypes.windll.user32.GetForegroundWindow()
     if hWnd == 0:
         # TODO - raise error instead
@@ -108,7 +108,7 @@ def getActiveWindow():
 
 
 def getActiveWindowTitle():
-    """Returns a string of the title of the currently active Window."""
+    """Returns a string of the title text of the currently active (focused) Window."""
     # NOTE - This function isn't threadsafe because it relies on a global variable. I don't use nonlocal because I want this to work on Python 2.
 
     global activeWindowTitle
@@ -131,11 +131,10 @@ def getActiveWindowTitle():
 
 
 def getWindowsAt(x, y):
-    """Returns a list of Window objects
+    """Returns a list of Window objects whose windows contain the point ``(x, y)``.
 
-    Args:
-      x (int, optional): The x position of the window(s).
-      y (int, optional): The y position of the window(s)."""
+    * ``x`` (int, optional): The x position of the window(s).
+    * ``y`` (int, optional): The y position of the window(s)."""
     windowsAtXY = []
     for window in getAllWindows():
         if pointInRect(x, y, window.left, window.top, window.width, window.height):
@@ -144,8 +143,7 @@ def getWindowsAt(x, y):
 
 
 def getWindowsWithTitle(title):
-    """Returns a list of Window objects that substring match the title.
-    """
+    """Returns a list of Window objects that substring match ``title`` in their title text."""
     hWndsAndTitles = _getAllTitles()
     windowObjs = []
     for hWnd, winTitle in hWndsAndTitles:
@@ -233,18 +231,18 @@ class Win32Window(BaseWindow):
 
 
     def activate(self):
-        """Activate this window and make it the foreground window."""
+        """Activate this window and make it the foreground (focused) window."""
         result = ctypes.windll.user32.SetForegroundWindow(self._hWnd)
         if result == 0:
             _raiseWithLastError()
 
 
-    def resizeRel(self, widthOffset, heightOffset):
+    def resize(self, widthOffset, heightOffset):
         """Resizes the window relative to its current size."""
         result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, self.left, self.top, self.width + widthOffset, self.height + heightOffset, 0)
         if result == 0:
             _raiseWithLastError()
-
+    resizeRel = resize # resizeRel is an alias for the resize() method.
 
     def resizeTo(self, newWidth, newHeight):
         """Resizes the window to a new width and height."""
@@ -253,12 +251,12 @@ class Win32Window(BaseWindow):
             _raiseWithLastError()
 
 
-    def moveRel(self, xOffset, yOffset):
+    def move(self, xOffset, yOffset):
         """Moves the window relative to its current position."""
         result = ctypes.windll.user32.SetWindowPos(self._hWnd, HWND_TOP, self.left + xOffset, self.top + yOffset, self.width, self.height, 0)
         if result == 0:
             _raiseWithLastError()
-
+    moveRel = move # moveRel is an alias for the move() method.
 
     def moveTo(self, newLeft, newTop):
         """Moves the window to new coordinates on the screen."""
@@ -269,17 +267,17 @@ class Win32Window(BaseWindow):
 
     @property
     def isMinimized(self):
-        """Returns True if the window is currently minimized."""
+        """Returns ``True`` if the window is currently minimized."""
         return ctypes.windll.user32.IsIconic(self._hWnd) != 0
 
     @property
     def isMaximized(self):
-        """Returns True if the window is currently maximized."""
+        """Returns ``True`` if the window is currently maximized."""
         return ctypes.windll.user32.IsZoomed(self._hWnd) != 0
 
     @property
     def isActive(self):
-        """Returns True if the window is currently the active, foreground window."""
+        """Returns ``True`` if the window is currently the active, foreground window."""
         return getActiveWindow() == self
 
     @property
@@ -294,6 +292,7 @@ class Win32Window(BaseWindow):
 
     @property
     def visible(self):
+        """Return ``True`` if the window is currently visible."""
         return isWindowVisible(self._hWnd)
 
 
