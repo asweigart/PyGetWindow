@@ -199,13 +199,6 @@ class Win32Window(BaseWindow):
             _raiseWithLastError()
 
 
-    def __str__(self):
-        r = Win32Window._getWindowRect(self._hWnd)
-        width = r.right - r.left
-        height = r.bottom - r.top
-        return '<%s left="%s", top="%s", width="%s", height="%s", title="%s">' % (self.__class__.__name__, r.left, r.top, width, height, self.title)
-
-
     def __repr__(self):
         return '%s(hWnd=%s)' % (self.__class__.__name__, self._hWnd)
 
