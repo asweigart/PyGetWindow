@@ -27,9 +27,9 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     (Win32Window(hWnd=131318), Win32Window(hWnd=1050492), Win32Window(hWnd=67206), Win32Window(hWnd=66754), Win32Window(hWnd=264354), Win32Window(hWnd=329210), Win32Window(hWnd=1114374), Win32Window(hWnd=852550), Win32Window(hWnd=328358), Win32Window(hWnd=66998), Win32Window(hWnd=132508), Win32Window(hWnd=66964), Win32Window(hWnd=66882), Win32Window(hWnd=197282), Win32Window(hWnd=393880), Win32Window(hWnd=66810), Win32Window(hWnd=328466), Win32Window(hWnd=132332), Win32Window(hWnd=262904), Win32Window(hWnd=65962), Win32Window(hWnd=65956), Win32Window(hWnd=197522), Win32Window(hWnd=131944), Win32Window(hWnd=329334), Win32Window(hWnd=395034), Win32Window(hWnd=132928), Win32Window(hWnd=65882))
     >>> gw.getWindowsWithTitle('Untitled')
     (Win32Window(hWnd=264354),)
-    >>> gw.getFocusedWindow()
+    >>> gw.getActiveWindow()
     Win32Window(hWnd=1050492)
-    >>> gw.getFocusedWindow().title
+    >>> gw.getActiveWindow().title
     'C:\\WINDOWS\\system32\\cmd.exe - pipenv  shell - python'
     >>> gw.getWindowsAt(10, 10)
     (Win32Window(hWnd=67206), Win32Window(hWnd=66754), Win32Window(hWnd=329210), Win32Window(hWnd=1114374), Win32Window(hWnd=852550), Win32Window(hWnd=132508), Win32Window(hWnd=66964), Win32Window(hWnd=66882), Win32Window(hWnd=197282), Win32Window(hWnd=393880), Win32Window(hWnd=66810), Win32Window(hWnd=328466), Win32Window(hWnd=395034), Win32Window(hWnd=132928), Win32Window(hWnd=65882))
