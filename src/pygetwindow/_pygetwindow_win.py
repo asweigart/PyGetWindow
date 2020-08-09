@@ -16,6 +16,8 @@ FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200
 # https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-showwindow#parameters
 SW_MINIMIZE = 6
 SW_MAXIMIZE = 3
+SW_HIDE = 0
+SW_SHOW = 5
 SW_RESTORE = 9
 
 # SetWindowPos constants:
