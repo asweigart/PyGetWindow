@@ -16,6 +16,8 @@ FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200
 # https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-showwindow#parameters
 SW_MINIMIZE = 6
 SW_MAXIMIZE = 3
+SW_HIDE = 0
+SW_SHOW = 5
 SW_RESTORE = 9
 
 # SetWindowPos constants:
@@ -228,7 +230,14 @@ class Win32Window(BaseWindow):
     def restore(self):
         """If maximized or minimized, restores the window to it's normal size."""
         ctypes.windll.user32.ShowWindow(self._hWnd, SW_RESTORE)
+        
+    def show(self):
+        """If hidden or showing, shows the window on screen and in title bar."""
+        ctypes.windll.user32.ShowWindow(self._hWnd,SW_SHOW)
 
+    def hide(self):
+        """If hidden or showing, hides the window from screen and title bar."""
+        ctypes.windll.user32.ShowWindow(self._hWnd,SW_HIDE)
 
     def activate(self):
         """Activate this window and make it the foreground (focused) window."""
