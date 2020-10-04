@@ -3,6 +3,14 @@ people who have submitted patches, reported bugs, added translations, helped
 answer newbie questions, and generally made PyGetWindow that much better:
 
 Al Sweigart https://github.com/asweigart/
+arkulinskis https://github.com/arkulinskis
+aweffr https://github.com/aweffr
+Demonthos https://github.com/Demonthos
+Duxxi https://github.com/sjhhh3
+EMOholcicka https://github.com/EMOholcicka
 Kudria https://github.com/Kudria
+lexxish https://github.com/lexxish
+李宏杰 https://github.com/lihongjie0209
 Randall White
 Ronald Oussoren
+Steve Newell https://github.com/newellista

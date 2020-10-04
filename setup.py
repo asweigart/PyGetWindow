@@ -1,14 +1,20 @@
-import re, io
+import io
+import os
+import re
 from setuptools import setup, find_packages
 
-# Load version from module (without loading the whole module)
-with open('src/pygetwindow/__init__.py', 'r') as fd:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        fd.read(), re.MULTILINE).group(1)
+scriptFolder = os.path.dirname(os.path.realpath(__file__))
+os.chdir(scriptFolder)
 
-# Read in the README.md for the long description.
-with io.open('README.md', encoding='utf-8') as fo:
-    long_description = fo.read()
+# Find version info from module (without importing the module):
+with open("src/pygetwindow/__init__.py", "r") as fileObj:
+    version = re.search(
+        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fileObj.read(), re.MULTILINE
+    ).group(1)
+
+# Use the README.md content for the long description:
+with io.open("README.md", encoding="utf-8") as fileObj:
+    long_description = fileObj.read()
 
 setup(
     name='PyGetWindow',
