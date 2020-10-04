@@ -68,7 +68,7 @@ class BaseWindow:
         raise NotImplementedError
 
     def __str__(self):
-        r = self._getWindowRect(self._hWnd)
+        r = self._getWindowRect()
         width = r.right - r.left
         height = r.bottom - r.top
         return '<%s left="%s", top="%s", width="%s", height="%s", title="%s">' % (
