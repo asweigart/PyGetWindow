@@ -1,10 +1,10 @@
 PyGetWindow
 ===========
 
-A simple, cross-platform module for obtaining GUI information on and controlling application's windows.
+A simple module for obtaining GUI information on and controlling application's windows.
 
 
-Still under development. Currently only the Windows platform is implemented. If you want to help contribute, please contact al@inventwithpython.com!
+Still under development. Currently only the Windows platform is fully implemented. Works on Mac OS too, but only a [few methods](src/pygetwindow/_pygetwindow_macos.py) are currently usable. If you want to help contribute, please contact al@inventwithpython.com!
 
 
 Install
