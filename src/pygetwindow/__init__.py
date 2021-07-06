@@ -50,6 +50,7 @@ class BaseWindow:
         pass
 
     def _setupRectProperties(self):
+
         def _onRead(attrName):
             r = self._getWindowRect()
             self._rect._left = r.left  # Setting _left directly to skip the onRead.
@@ -58,8 +59,11 @@ class BaseWindow:
             self._rect._height = r.bottom - r.top  # Setting _height directly to skip the onRead.
 
         def _onChange(oldBox, newBox):
-            self.moveTo(newBox.left, newBox.top)
-            self.resizeTo(newBox.width, newBox.height)
+            if sys.platform == "win32":
+                self.moveTo(newBox.left, newBox.top)
+                self.resizeTo(newBox.width, newBox.height)
+            else:
+                self._moveResizeTo(newBox.left, newBox.top, newBox.width, newBox.height, wait=True)
 
         r = self._getWindowRect()
         self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
@@ -117,6 +121,9 @@ class BaseWindow:
 
     def moveTo(self, newLeft, newTop):
         """Moves the window to new coordinates on the screen."""
+        raise NotImplementedError
+
+    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight, wait=False):
         raise NotImplementedError
 
     @property
@@ -327,8 +334,18 @@ class BaseWindow:
 
 
 if sys.platform == "darwin":
-    # raise NotImplementedError('PyGetWindow currently does not support macOS. If you have Appkit/Cocoa knowledge, please contribute! https://github.com/asweigart/pygetwindow') # TODO - implement mac
-    from ._pygetwindow_macos import *
+    from ._pygetwindow_macos import (
+        MacOSWindow,
+        getActiveWindow,
+        getActiveWindowTitle,
+        getWindowsAt,
+        getWindowsWithTitle,
+        getAllWindows,
+        getAllTitles,
+        cursor,
+        resolution,
+        getWindowsAt,
+    )
 
     Window = MacOSWindow
 elif sys.platform == "win32":
@@ -343,7 +360,21 @@ elif sys.platform == "win32":
     )
 
     Window = Win32Window
-else:
-    raise NotImplementedError(
-        "PyGetWindow currently does not support Linux. If you have Xlib knowledge, please contribute! https://github.com/asweigart/pygetwindow"
+elif sys.platform == "linux":
+    from ._pygetwindow_linux import (
+        LinuxWindow,
+        getActiveWindow,
+        getActiveWindowTitle,
+        getWindowsAt,
+        getWindowsWithTitle,
+        getAllWindows,
+        getAllTitles,
+        cursor,
+        resolution,
+        getWindowsAt,
     )
+
+    Window = LinuxWindow
+else:
+    raise NotImplementedError('PyGetWindow currently does not support this platform. If you think you can help, please contribute! https://github.com/asweigart/pygetwindow')
+

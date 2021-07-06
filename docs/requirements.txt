@@ -1,1 +1,9 @@
-pygetwindow
+pyrect
+ctypes; sys_platform == 'win32'
+pyautogui; sys_platform == 'linux'
+xlib; sys_platform == 'linux'
+ewmh; sys_platform == 'linux'
+pyobjc-core; sys_platform == 'darwin'
+pyobjc-framework-Quartz; sys_platform == 'darwin'
+pyobjc-framework-Cocoa; sys_platform == 'darwin'
+AppKit; sys_platform == 'darwin'
