@@ -13,7 +13,8 @@ def test_basic():
         subprocess.Popen('notepad')
         time.sleep(0.5)
 
-        testWindows = pygetwindow.getWindowsWithTitle('Untitled - Notepad')
+        testWindows = [pygetwindow.getActiveWindow()]
+        # testWindows = pygetwindow.getWindowsWithTitle('Untitled - Notepad')   # Not working in other languages
         assert len(testWindows) == 1
 
         npw = testWindows[0]  # testWindows[0] is the selected window
@@ -24,13 +25,7 @@ def test_basic():
         subprocess.Popen('gedit')
         time.sleep(5)
 
-        testWindows = []
-        for win in pygetwindow.getAllWindows():
-            print(win.title)
-            if 'gedit' in win.title:
-                testWindows = [win]
-                break
-
+        testWindows = [pygetwindow.getActiveWindow()]
         assert len(testWindows) == 1
 
         npw = testWindows[0]  # testWindows[0] is the selected window
@@ -38,20 +33,19 @@ def test_basic():
         basic_linux(npw)
 
     elif sys.platform == "darwin":
-        subprocess.Popen(['open', '-a', 'TextEdit'])
+        subprocess.Popen(['touch', 'test.txt'])
+        time.sleep(2)
+        subprocess.Popen(['open', '-a', 'TextEdit', 'test.txt'])
         time.sleep(5)
 
-        testWindows = []
-        for win in pygetwindow.getAllWindows():
-            if 'TextEdit' in win._parentName():
-                testWindows = [win]
-                break
-
+        testWindows = [pygetwindow.getActiveWindow()]
         assert len(testWindows) == 1
 
         npw = testWindows[0]  # testWindows[0] is the selected window
 
         basic_macOS(npw)
+
+        subprocess.Popen(['rm', 'test.txt'])
 
     else:
         raise NotImplementedError('PyGetWindow currently does not support this platform. If you have useful knowledge, please contribute! https://github.com/asweigart/pygetwindow')
@@ -313,7 +307,7 @@ def basic_macOS(npw):
     assert npw is not None
 
     wait = True
-    timelap = 0.5
+    timelap = 0.0
 
     # Test maximize/minimize/restore.
     if npw.isMaximized:  # Make sure it starts un-maximized
@@ -329,8 +323,6 @@ def basic_macOS(npw):
     npw.minimize(wait=wait)
     assert npw.isMinimized
     npw.restore(wait=wait)
-    # This assertion might fail if you don't quickly click on the window to restore it
-    time.sleep(3)
     assert not npw.isMinimized
 
     # Test resizing

@@ -2,100 +2,449 @@
 # -*- coding: utf-8 -*-
 
 import os
+import subprocess
 import sys
 import time
-import AppKit
+from AppKit import *
 import Quartz
-import Cocoa
 from pygetwindow import PyGetWindowException, pointInRect, BaseWindow, Rect, Point, Size
 
 """ 
 IMPORTANT NOTICE:
-    There aren't mechanisms to manage other apps/windows on MacOS. So this is full of hacks based mainly on scripts.
-    For non-scriptable apps, some methods will not work (and will return 'False'): move/To, resize/To.
+    There aren't many mechanisms to manage other apps/windows on MacOS, so this is based mainly on Apple Scripts.
+    For non-scriptable apps, so some methods and properties might not work.
     The rest of methods should work fine in most cases. 
-    In case you need full-support, try to add your target application to Accessibility options.
+    In case you need full-support, granting your application in Accessibility options could fix it (or not)
 """
 
-WS = AppKit.NSWorkspace.sharedWorkspace()
+WS = NSWorkspace.sharedWorkspace()
 # WARNING: Changes are not immediately applied nor updated on stored window object
-#          Activate wait option if you need to effectively know if/when change has been applied or updated values
+#          Activate wait option if you need to effectively know if/when action has been performed
 WAIT_ATTEMPTS = 10
 WAIT_DELAY = 0.025  # Will be progressively increased on every retry
-MENUBAR_HEIGHT = 24  # Temporary Hack. MUST find a wayt to check if window is maximized or menubar height programmatically
 
 
-def getActiveWindow():
+def getActiveWindow(app=None):
     """Returns a Window object of the currently active Window or None."""
-    app = WS.frontmostApplication()
-    if app:
-        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    if not app:
+        app = WS.frontmostApplication()
+        windows = _getAllAppWindows(app)
         for win in windows:
-            if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerName] == app.localizedName():
+            if win[Quartz.kCGWindowLayer] == 0:
                 return MacOSWindow(app, win)
+    else:
+        for win in getAllWindows(app):  # .keyWindow() not working?!?!?!
+            return MacOSNSWindow(app, win)
     return None
 
 
-def _getActiveWindow():
-    """Alternative: Returns a Window object of the currently active Window."""
-    # Source: https://stackoverflow.com/questions/53237266/how-can-i-minimize-maximize-windows-in-macos-with-the-cocoa-api-from-a-python-sc
-    activeApps = WS.runningApplications()
-    windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
-    for app in activeApps:
-        if app.isActive():
-            for win in windows:
-                if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerName] == app.localizedName():
-                    return MacOSWindow(app, win)
-    return None
-
-
-def getActiveWindowTitle():
+def getActiveWindowTitle(app=None):
     """Returns a Window object of the currently active Window or empty string."""
-    win = getActiveWindow()
+    win = getActiveWindow(app)
     if win:
         return win.title
     else:
         return ""
 
 
-def getWindowsAt(x, y):
+def getWindowsAt(x, y, app=None):
     """Returns a list of windows under the mouse pointer or an empty list."""
     matches = []
-    for win in getAllWindows():
+    for win in getAllWindows(app):
         if pointInRect(x, y, win.left, win.top, win.width, win.height):
             matches.append(win)
     return matches
 
 
-def getWindowsWithTitle(title):
+def getWindowsWithTitle(title, app=None):
     """Returns a list of window objects matching the given title or an empty list."""
     # DOUBT: Should the "owner" name (app to which the window belongs to) be included?
-    matches = []
-    for win in getAllWindows():
-        if win.title == title:
-            matches.append(win)
-    return matches
-
-
-def getAllTitles():
-    """Returns a list of strings of window titles for all visible windows."""
-    return [win.title for win in getAllWindows()]
-
-
-def getAllWindows():
-    """Returns a list of strings of window titles for all visible windows."""
-    # It is restricted to layer 0, which seems to be the "user layer", but not sure...
     windows = []
-    activeApps = WS.runningApplications()
-    for app in activeApps:
-        appwindows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
-        for win in appwindows:
-            if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerName] == app.localizedName():
-                windows.append(MacOSWindow(app, win))
+    if not app:
+        activeApps = _getAllApps()
+        appwindows = _getAllWindows(app)
+        for app in activeApps:
+            for win in appwindows:
+                if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
+                    w = MacOSWindow(app, win)
+                    if w.title == title:
+                        windows.append(w)
+    else:
+        for win in app.orderedWindows():
+            w = MacOSWindow(app, win)
+            if w.title == title:
+                windows.append(w)
     return windows
 
 
+def getAllTitles(app=None):
+    """Returns a list of strings of window titles for all visible windows."""
+    return [win.title for win in getAllWindows(app)]
+
+
+def getAllWindows(app=None):
+    """Returns a list of window objects for all visible windows."""
+    # It is restricted to layer 0, which should be the "user layer"
+    windows = []
+    if not app:
+        activeApps = _getAllApps()
+        appwindows = _getAllWindows(app)
+        for app in activeApps:
+            for win in appwindows:
+                if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
+                    windows.append(MacOSWindow(app, win))
+    else:
+        for win in app.orderedWindows():
+            windows.append(MacOSNSWindow(app, win))
+    return windows
+
+
+def _getActiveWindow(app=None):
+    # Source: https://stackoverflow.com/questions/53237266/how-can-i-minimize-maximize-windows-in-macos-with-the-cocoa-api-from-a-python-sc
+    activeApps = _getAllApps()
+    windows = _getAllWindows()
+    for app in activeApps:
+        if app.isActive():
+            for win in windows:
+                if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
+                    return MacOSWindow(app, win)
+    return None
+
+
+def _getAllApps():
+    return WS.runningApplications()
+
+
+def _getAllWindows(excludeDesktop=True, screenOnly=True):
+    flags = Quartz.kCGWindowListExcludeDesktopElements and excludeDesktop | Quartz.kCGWindowListOptionOnScreenOnly and screenOnly
+    return Quartz.CGWindowListCopyWindowInfo(flags, Quartz.kCGNullWindowID)
+
+
+def _getAllAppWindows(app):
+    windows = _getAllWindows(screenOnly=False)
+    windowsInApp = []
+    for win in windows:
+        if win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
+            windowsInApp.append(win)
+    return windowsInApp
+
+
 class MacOSWindow(BaseWindow):
+
+    def __init__(self, app, hWnd):
+        self._app = app
+        self._hWnd = hWnd
+        self.Title = self.altTitle()
+        self._setupRectProperties()
+
+    def _getWindowRect(self):
+        """Returns a rect of window position and size (left, top, right, bottom).
+        It follows ctypes format for compatibility"""
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                    set winName to "%s" 
+                                    set appPos to (get position of window 1 whose name is winName)
+                                    set appSize to (get size of window 1 whose name is winName)
+                                    set appBounds to {appPos, appSize}
+                                end tell
+                                return appBounds'""" % (self._app.localizedName(), self.title)
+        w = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip().split(", ")
+        return Rect(int(w[0]), int(w[1]), int(w[0]) + int(w[2]), int(w[1]) + int(w[3]))
+
+    def __repr__(self):
+        return '%s(hWnd=%s)' % (self.__class__.__name__, self._hWnd)
+
+    def __eq__(self, other):
+        return isinstance(other, MacOSWindow) and self._hWnd == other._hWnd
+
+    def close(self, close_parent=False):
+        """Closes this window. This may trigger "Are you sure you want to
+        quit?" dialogs or other actions that prevent the window from actually
+        closing. This is identical to clicking the X button on the window."""
+        if close_parent:
+            self._app.terminate()
+        else:
+            cmd = """osascript -e 'tell application "%s" to close (every window whose name is "%s")'""" % \
+                  (self._app.localizedName(), self.title)
+            os.system(cmd)
+
+    def minimize(self, wait=False):
+        """Minimizes this window.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was minimized"""
+        # https://apple.stackexchange.com/questions/35189/is-there-a-way-to-minimize-open-windows-from-the-command-line-in-os-x-lion
+        if not self.isMinimized:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
+                                        try
+                                            set value of attribute "AXMinimized" of (window 1 whose name is "%s") to true
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), self.title)
+            os.system(cmd)
+            retries = 0
+            while wait and retries < WAIT_ATTEMPTS and not self.isMinimized:
+                retries += 1
+                time.sleep(WAIT_DELAY * retries)
+        return self.isMinimized
+
+    def maximize(self, wait=False, force=False):
+        """Maximizes this window.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was maximized"""
+        # Thanks to: macdeport (for this piece of code, his help, and the moral support!!!)
+        if not self.isMaximized:
+            cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+                                        try
+                                            set value of attribute "AXFullScreen" of (window 1 whose name is "%s") to true
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), self.title)
+            os.system(cmd)
+            retries = 0
+            while wait and retries < WAIT_ATTEMPTS and not self.isMaximized:
+                retries += 1
+                time.sleep(WAIT_DELAY * retries)
+        return self.isMaximized
+
+    def restore(self, wait=False):
+        """If maximized or minimized, restores the window to it's normal size.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was restored"""
+        self.activate(wait=True)
+        if self.isMaximized:
+            cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+                                        try
+                                            set value of attribute "AXFullScreen" of window 1 to false
+                                        end try
+                                    end tell'""" % self._app.localizedName()
+            os.system(cmd)
+        if self.isMinimized:
+            cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+                                        try
+                                            set value of attribute "AXMinimized" of (window 1 whose name is "%s") to false
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), self.title)
+            os.system(cmd)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and (self.isMinimized or self.isMaximized):
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return not self.isMaximized and not self.isMinimized
+
+    def hide(self, wait=False):
+        """If hidden or showing, hides the app from screen and title bar.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was hidden (unmapped)"""
+        self._app.hide()
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and self.visible:  # and self._isMapped:
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return not self.visible
+
+    def show(self, wait=False):
+        """If hidden or showing, shows the window on screen and in title bar.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window is showing (mapped)"""
+        self._app.unhide()
+        self.activate(wait=wait)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and not self.visible:  # and not self._isMapped:
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return self.visible
+
+    def activate(self, wait=False):
+        """Activate this window and make it the foreground (focused) window.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was activated"""
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                    try
+                                        set index of (window 1 whose name is "%s") to 1
+                                    end try
+                                end tell'""" % (self._app.localizedName(), self.title)
+        os.system(cmd)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and not self.isActive:
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return self.isActive
+
+    def resize(self, widthOffset, heightOffset, wait=False):
+        """Resizes the window relative to its current size.
+        Use 'wait' option to confirm action requested (in a reasonable time)
+
+        Returns ''True'' if window was resized to the given size
+        WARNING: Will not work if target app is not scriptable"""
+        return self.resizeTo(self.width + widthOffset, self.height + heightOffset, wait)
+
+    resizeRel = resize  # resizeRel is an alias for the resize() method.
+
+    def resizeTo(self, newWidth, newHeight, wait=False):
+        """Resizes the window to a new width and height.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was resized to the given size
+        WARNING: Will not work if target app is not scriptable"""
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                    try
+                                        set size of (window 1 whose name is "%s") to {%i, %i}
+                                    end try
+                                end tell'""" % \
+              (self._app.localizedName(), self.title, newWidth, newHeight)
+        os.system(cmd)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and self.width != newWidth and self.height != newHeight:
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return self.width == newWidth and self.height == newHeight
+
+    def move(self, xOffset, yOffset, wait=False):
+        """Moves the window relative to its current position.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position
+        WARNING: Will not work if target app is not scriptable"""
+        return self.moveTo(self.left + xOffset, self.top + yOffset, wait)
+
+    moveRel = move  # moveRel is an alias for the move() method.
+
+    def moveTo(self, newLeft, newTop, wait=False):
+        """Moves the window to new coordinates on the screen.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position
+        WARNING: Will not work if target app is not scriptable"""
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                    try
+                                        set position of (window 1 whose name is "%s") to {%i, %i}
+                                    end try
+                                end tell'""" % \
+              (self._app.localizedName(), self.title, newLeft, newTop)
+        os.system(cmd)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop:
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
+        return self.left == newLeft and self.top == newTop
+
+    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight):
+        # https://stackoverflow.com/questions/16598551/os-x-move-window-from-python
+        # https://apple.stackexchange.com/questions/350256/how-to-move-mac-os-application-to-specific-display-and-also-resize-automatically
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
+                                    set winName to "%s"
+                                    try
+                                        set position of (window 1 whose name is winName) to {%i, %i}
+                                    end try
+                                    try
+                                        set size of (window 1 whose name is winName) to {%i, %i}
+                                    end try
+                                end tell'""" % \
+              (self._app.localizedName(), self.title, newLeft, newTop, newWidth, newHeight)
+        os.system(cmd)
+        return
+
+    @property
+    def isMinimized(self):
+        """Returns ``True`` if the window is currently minimized."""
+        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+                                    set isMin to false
+                                    set isMin to value of attribute "AXMinimized" of (window 1 whose name is "%s")
+                                end tell
+                                return (isMin as string)'""" % (self._app.localizedName(), self.title)
+        ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
+        return ret == "true"
+
+    @property
+    def isMaximized(self):
+        """Returns ``True`` if the window is currently maximized (fullscreen)."""
+        cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+                                    set isFull to false
+                                    try
+                                        set isFull to value of attribute "AXFullScreen" of window 1
+                                    end try
+                                end tell
+                                return (isFull as string)'""" % self._app.localizedName()
+        ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
+        return ret == "true"
+
+    @property
+    def isActive(self):
+        """Returns ``True`` if the window is currently the active, foreground window."""
+        cmd = """osascript -e 'tell application "System Events" 
+                                    set frontApp to 0
+                                    try
+                                        set frontApp to first application process whose frontmost is true
+                                    end try
+                                end tell
+                                set win_name to ""
+                                if frontApp is not equal to 0
+                                    if frontApp is equal to "%s"
+                                        tell application "System Events" to tell application process frontApp
+                                            try
+                                                set win_name to name of front window
+                                            end try
+                                        end tell
+                                    end if
+                                end if
+                                return win_name'""" % self._app.localizedName()
+        ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
+        return ret == self.title
+
+    def altTitle(self):
+        name = self._hWnd.get(Quartz.kCGWindowName, '')
+        if not name:
+            self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        set window_name to ""
+                                        try
+                                            set window_name to name of window 1
+                                        end try
+                                    end tell
+                                    return window_name'""" % self._app.localizedName()
+            name = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
+            if not name:
+                name = self._hWnd.get(Quartz.kCGWindowOwnerName, '')
+        return name
+
+    @property
+    def title(self):
+        """Returns the window title as a string."""
+        # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
+        # Should the owner (app) be added?
+        # return self._hWnd.get([Quartz.kCGWindowOwnerName], '') + " - " + self._hWnd.get(Quartz.kCGWindowName, '')
+        return self.Title
+
+    @property
+    def visible(self):
+        """Returns ``True`` if the window is currently visible."""
+        return self._isMapped and not self.isMinimized
+
+    @property
+    def _isMapped(self):
+        # Returns ``True`` if the window is currently mapped (well, only if it doesn't exist... by the moment)
+        cmd = """osascript -e 'tell application "System Events"
+                                    set isMapped to false
+                                    try
+                                        set isMapped to (visible of application process "%s")
+                                    end try
+                                end tell
+                                return isMapped'""" % self._app.localizedName()
+        ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
+        return ret == "true"
+        # return not self._app.isHidden()  # Returns always 'False'
+
+
+class MacOSNSWindow(BaseWindow):
 
     def __init__(self, app, hWnd):
         self._app = app
@@ -105,18 +454,13 @@ class MacOSWindow(BaseWindow):
     def _getWindowRect(self):
         """Returns a rect of window position and size (left, top, right, bottom).
         It follows ctypes format for compatibility"""
-        self._updateAppWindow(self._app, self._hWnd)
-        w = self._hWnd['kCGWindowBounds']
-        return Rect(int(w["X"]), int(w["Y"]), int(w["X"] + w["Width"]), int(w["Y"] + w["Height"]))
-
-    def _updateAppWindow(self, app, hWnd):
-        # Update window object since we stored a static copy
-        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID)
-        for win in windows:
-            if win[Quartz.kCGWindowOwnerName] == app.localizedName() and \
-                    win[Quartz.kCGWindowNumber] == hWnd[Quartz.kCGWindowNumber]:
-                self._hWnd = win
-        return
+        frame = self._hWnd.frame()
+        res = resolution()
+        x = int(frame.origin.x)
+        y = int(res.height) - int(frame.origin.y) - int(frame.size.height)
+        w = x + int(frame.size.width)
+        h = y + int(frame.size.height)
+        return Rect(x, y, w, h)
 
     def __repr__(self):
         return '%s(hWnd=%s)' % (self.__class__.__name__, self._hWnd)
@@ -124,246 +468,173 @@ class MacOSWindow(BaseWindow):
     def __eq__(self, other):
         return isinstance(other, MacOSWindow) and self._hWnd == other._hWnd
 
-    def close(self):
+    def close(self, close_parent=False):
         """Closes this window. This may trigger "Are you sure you want to
         quit?" dialogs or other actions that prevent the window from actually
         closing. This is identical to clicking the X button on the window."""
-        self._app.terminate()
+        if close_parent:
+            self._app.terminate()
+        else:
+            self._hWnd.performClose_(self._app)
 
     def minimize(self, wait=False):
         """Minimizes this window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
-        # https://stackoverflow.com/questions/1770312/is-there-a-sendkey-for-mac-in-python
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was minimized"""
         if not self.isMinimized:
-            self.activate(wait=True)
-            cmd = """osascript -e 'tell application "System Events" to keystroke "m" using {command down, option down}'"""
-            os.system(cmd)
-            self._updateAppWindow(self._app, self._hWnd)
+            self._hWnd.performMiniaturize_(self._app)
             retries = 0
             while wait and retries < WAIT_ATTEMPTS and not self.isMinimized:
                 retries += 1
                 time.sleep(WAIT_DELAY * retries)
-                self._updateAppWindow(self._app, self._hWnd)
         return self.isMinimized
 
     def maximize(self, wait=False, force=False):
-        """Maximizes (fullscreen) this window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        """Maximizes this window.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was maximized"""
         if not self.isMaximized:
-            self.activate(wait=True)
-            cmd = """osascript -e 'tell application "System Events" to keystroke "f" using {command down, control down}'"""
-            os.system(cmd)
-            self._updateAppWindow(self._app, self._hWnd)
+            self._hWnd.performZoom_(self._app)
             retries = 0
             while wait and retries < WAIT_ATTEMPTS and not self.isMaximized:
                 retries += 1
                 time.sleep(WAIT_DELAY * retries)
-                self._updateAppWindow(self._app, self._hWnd)
         return self.isMaximized
 
     def restore(self, wait=False):
         """If maximized or minimized, restores the window to it's normal size.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was restored"""
         self.activate(wait=True)
         if self.isMaximized:
-            cmd = """osascript -e 'tell application "System Events" to keystroke "f" using {command down, control down}'"""
-            os.system(cmd)
-            self._updateAppWindow(self._app, self._hWnd)
-            retries = 0
-            while wait and retries < WAIT_ATTEMPTS and (self.isMinimized or self.isMaximized):
-                retries += 1
-                time.sleep(WAIT_DELAY * retries)
-                self._updateAppWindow(self._app, self._hWnd)
+            self._hWnd.performZoom_(self._app)
         if self.isMinimized:
-            # Some apps (e.g. Terminal) will allow this method, but not some others (e.g. TextEdit)
-            # winIndex = self._findWindowNumber(self._app, self._hWnd)
-            # cmd = """osascript -e 'tell application "System Events" to keystroke "%i" using {command down, option down}'""" % winIndex
-            #
-            # To allow this, the script must be added to Accessibility options
-            # https://stackoverflow.com/questions/57412472/how-to-unminimize-a-minimized-window-apple-script-not-working-with-upgrade-from
-            # cmd = """ osascript -e 'tell application "System Events"
-            #             tell process "Dock"
-            #                 tell list 1
-            #                     try
-            #                         click (every UI element whose name is "%s")
-            #                     on error errstr
-            #                         display alert errstr
-            #                     end try
-            #                 end tell
-            #             end tell
-            #         end tell'""" % self.title
-            #
-            # This simulates MacOS behavior, but requires user action
-            cmd = """osascript -e 'tell application "System Events" to key code 125 using control down'"""
-            os.system(cmd)
-            self._updateAppWindow(self._app, self._hWnd)
-            retries = 0
-            while wait and retries < WAIT_ATTEMPTS and (self.isMinimized or self.isMaximized):
-                retries += 1
-                time.sleep(WAIT_DELAY * retries)
-                self._updateAppWindow(self._app, self._hWnd)
+            self._hWnd.deminiaturize_(self._app)
+        retries = 0
+        while wait and retries < WAIT_ATTEMPTS and (self.isMinimized or self.isMaximized):
+            retries += 1
+            time.sleep(WAIT_DELAY * retries)
         return not self.isMaximized and not self.isMinimized
 
     def hide(self, wait=False):
-        """If hidden or showing, hides the window from screen and title bar.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        """If hidden or showing, hides the app from screen and title bar.
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was hidden (unmapped)"""
         self._app.hide()
-        self._updateAppWindow(self._app, self._hWnd)
         retries = 0
-        while wait and retries < WAIT_ATTEMPTS and self._isMapped:
+        while wait and retries < WAIT_ATTEMPTS and self.visible:  # and self._isMapped:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
-        return not self._isMapped
+        return not self.visible
 
     def show(self, wait=False):
         """If hidden or showing, shows the window on screen and in title bar.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window is showing (mapped)"""
         self._app.unhide()
-        self.activate(wait=True)
-        self._updateAppWindow(self._app, self._hWnd)
+        self.activate(wait=wait)
         retries = 0
-        while wait and retries < WAIT_ATTEMPTS and not self._isMapped:
+        while wait and retries < WAIT_ATTEMPTS and not self.visible:  # and not self._isMapped:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
-        return self._isMapped
+        return self.visible
 
     def activate(self, wait=False):
         """Activate this window and make it the foreground (focused) window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
-        self._app.activateWithOptions_(Cocoa.NSApplicationActivateIgnoringOtherApps)
-        self._updateAppWindow(self._app, self._hWnd)
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was activated"""
+        self._app.activateIgnoringOtherApps_(True)
+        self._hWnd.makeKeyAndOrderFront_(self._app)
         retries = 0
         while wait and retries < WAIT_ATTEMPTS and not self.isActive:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
         return self.isActive
 
     def resize(self, widthOffset, heightOffset, wait=False):
-        """Resizes the window relative to its current size. For non-scriptable apps, it will not work.
-        Use 'wait' option to confirm action requested (in a reasonable time).
+        """Resizes the window relative to its current size.
+        Use 'wait' option to confirm action requested (in a reasonable time)
+
+        Returns ''True'' if window was resized to the given size
         WARNING: Will not work if target app is not scriptable"""
         return self.resizeTo(self.width + widthOffset, self.height + heightOffset, wait)
 
     resizeRel = resize  # resizeRel is an alias for the resize() method.
 
     def resizeTo(self, newWidth, newHeight, wait=False):
-        """Resizes the window to a new width and height. For non-scriptable apps, it will not work.
+        """Resizes the window to a new width and height.
         Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was resized to the given size
         WARNING: Will not work if target app is not scriptable"""
-        self._updateAppWindow(self._app, self._hWnd)
-        cmd = """osascript -e 'tell application "%s" to tell window 1 to set bounds to {%i, %i, %i, %i}'""" % \
-              (self._app.localizedName(), self.left, self.top, self.left + newWidth, self.top + newHeight)
-        os.system(cmd)
-        self._updateAppWindow(self._app, self._hWnd)
+        self._hWnd.setFrame_display_animate_(NSMakeRect(self.bottomleft.x, self.bottomleft.y, newWidth, newHeight), True, True)
         retries = 0
         while wait and retries < WAIT_ATTEMPTS and self.width != newWidth and self.height != newHeight:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
         return self.width == newWidth and self.height == newHeight
 
     def move(self, xOffset, yOffset, wait=False):
-        """Moves the window relative to its current position. For non-scriptable apps, it will not work.
+        """Moves the window relative to its current position.
         Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position
         WARNING: Will not work if target app is not scriptable"""
         return self.moveTo(self.left + xOffset, self.top + yOffset, wait)
 
     moveRel = move  # moveRel is an alias for the move() method.
 
     def moveTo(self, newLeft, newTop, wait=False):
-        """Moves the window to new coordinates on the screen. For non-scriptable apps, it will not work.
+        """Moves the window to new coordinates on the screen.
         Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position
         WARNING: Will not work if target app is not scriptable"""
-        self._updateAppWindow(self._app, self._hWnd)
-        cmd = """osascript -e 'tell application "%s" to tell window 1 to set bounds to {%i, %i, %i, %i}'""" % \
-              (self._app.localizedName(), newLeft, newTop, newLeft + self.width, newTop + self.height)
-        os.system(cmd)
-        self._updateAppWindow(self._app, self._hWnd)
+        self._hWnd.setFrame_display_animate_(NSMakeRect(newLeft, resolution().height - newTop - self.height, self.width, self.height), True, True)
         retries = 0
         while wait and retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
         return self.left == newLeft and self.top == newTop
 
-    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight, wait=False):
-        # https://stackoverflow.com/questions/16598551/os-x-move-window-from-python
-        # https://apple.stackexchange.com/questions/350256/how-to-move-mac-os-application-to-specific-display-and-also-resize-automatically
-        # I guess this solution relies on the target app scripting capabilities, so it's not general...
-        # Nevertheless, it might be the only solution since Apple does not "like" apps controlling other apps.
-        self._updateAppWindow(self._app, self._hWnd)
-        cmd = """osascript -e 'tell application "%s" to tell window 1 to set bounds to {%i, %i, %i, %i}'""" % \
-              (self._app.localizedName(), newLeft, newTop, newLeft + newWidth, newTop + newHeight)
-        ret = os.system(cmd)
-        self._updateAppWindow(self._app, self._hWnd)
-        retries = 0
-        while ret == 0 and wait and retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop and \
-                self.width != newWidth and self.height != newHeight:
-            retries += 1
-            time.sleep(WAIT_DELAY * retries)
-            self._updateAppWindow(self._app, self._hWnd)
-        return True if ret == 0 else False
+    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight):
+        self._hWnd.setFrame_display_animate_(NSMakeRect(newLeft, resolution().height - newTop - newHeight, newWidth, newHeight), True, True)
+        return
 
     @property
     def isMinimized(self):
         """Returns ``True`` if the window is currently minimized."""
-        return Quartz.kCGWindowIsOnscreen not in self._hWnd.keys() and not self.isMaximized #and self._isMapped
+        return self._hWnd.isMiniaturized()
 
     @property
     def isMaximized(self):
         """Returns ``True`` if the window is currently maximized (fullscreen)."""
-        return self.left == 0 and self.top in (0, MENUBAR_HEIGHT) and \
-               self.width == resolution().width and self.height == resolution().height - self.top
+        return self._hWnd.isZoomed()
 
     @property
     def isActive(self):
         """Returns ``True`` if the window is currently the active, foreground window."""
-        win = getActiveWindow()
-        if win:
-            if win.isMaximized and self.isMaximized:
-                return True
-            else:
-                return self._app.isActive() and \
-                       win._hWnd[Quartz.kCGWindowNumber] == self._hWnd[Quartz.kCGWindowNumber]
+        windows = getAllWindows(self._app)
+        for win in windows:
+            return self._hWnd == win
         return False
 
     @property
     def title(self):
         """Returns the window title as a string."""
-        # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
         # Should the owner (app) be added?
-        # return self._hWnd.get([Quartz.kCGWindowOwnerName], '') + " - " + self._hWnd.get(Quartz.kCGWindowName, '')
-        return self._hWnd.get(Quartz.kCGWindowName, '')
-
-    def _parentName(self):
-        return self._hWnd.get(Quartz.kCGWindowOwnerName, '')
+        return self._hWnd.title()
 
     @property
     def visible(self):
-        """Return ``True`` if the window is currently visible."""
-        if self.isMaximized:
-            return True
-        if not self._isMapped or self.isMinimized:
-            return False
-        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListExcludeDesktopElements | Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
-        for win in windows:
-            if win[Quartz.kCGWindowOwnerName] == self._app.localizedName() and \
-                    win[Quartz.kCGWindowNumber] == self._hWnd[Quartz.kCGWindowNumber]:
-                return True
-        return False
-
-    @property
-    def _isMapped(self):
-        """Return ``True`` if the window is currently mapped."""
-        for win in getAllWindows():
-            if win._hWnd[Quartz.kCGWindowOwnerName] == self._app.localizedName() and \
-                    win._hWnd[Quartz.kCGWindowNumber] == self._hWnd[Quartz.kCGWindowNumber]:
-                return True
-        return False
-        # return not self._app.isHidden()  # Returns always 'False' (maybe because of virtualbox???)
+        """Returns ``True`` if the window is currently visible."""
+        return self._hWnd.isVisible()
 
 
 def cursor():
@@ -397,7 +668,8 @@ def displayWindowsUnderMouse(xOffset=0, yOffset=0):
         prevWindows = None
         while True:
             x, y = cursor()
-            positionStr = 'X: ' + str(x - xOffset).rjust(4) + ' Y: ' + str(y - yOffset).rjust(4) + '  (Press Ctrl-C to quit)'
+            positionStr = 'X: ' + str(x - xOffset).rjust(4) + ' Y: ' + str(y - yOffset).rjust(
+                4) + '  (Press Ctrl-C to quit)'
             if prevWindows is not None:
                 sys.stdout.write(positionStr)
                 sys.stdout.write('\b' * len(positionStr))
@@ -423,6 +695,7 @@ def main():
     npw = getActiveWindow()
     print("ACTIVE WINDOW:", npw.title, "/", npw.box)
     print("")
+    print(getAllTitles())
     displayWindowsUnderMouse(0, 0)
 
 

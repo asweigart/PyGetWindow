@@ -63,7 +63,7 @@ class BaseWindow:
                 self.moveTo(newBox.left, newBox.top)
                 self.resizeTo(newBox.width, newBox.height)
             else:
-                self._moveResizeTo(newBox.left, newBox.top, newBox.width, newBox.height, wait=True)
+                self._moveResizeTo(newBox.left, newBox.top, newBox.width, newBox.height)
 
         r = self._getWindowRect()
         self._rect = pyrect.Rect(r.left, r.top, r.right - r.left, r.bottom - r.top, onChange=_onChange, onRead=_onRead)
@@ -123,7 +123,7 @@ class BaseWindow:
         """Moves the window to new coordinates on the screen."""
         raise NotImplementedError
 
-    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight, wait=False):
+    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight):
         raise NotImplementedError
 
     @property
@@ -336,6 +336,7 @@ class BaseWindow:
 if sys.platform == "darwin":
     from ._pygetwindow_macos import (
         MacOSWindow,
+        MacOSNSWindow,
         getActiveWindow,
         getActiveWindowTitle,
         getWindowsAt,
@@ -344,7 +345,6 @@ if sys.platform == "darwin":
         getAllTitles,
         cursor,
         resolution,
-        getWindowsAt,
     )
 
     Window = MacOSWindow
@@ -371,7 +371,6 @@ elif sys.platform == "linux":
         getAllTitles,
         cursor,
         resolution,
-        getWindowsAt,
     )
 
     Window = LinuxWindow

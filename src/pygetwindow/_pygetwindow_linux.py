@@ -134,8 +134,7 @@ class LinuxWindow(BaseWindow):
         return Rect(x, y, x + geom.width, y + geom.height)
 
     def _saveWindowInitValues(self):
-        """Saves initial rect values to allow reset to original
-        position, size, state and hints."""
+        # Saves initial rect values to allow reset to original position, size, state and hints.
         self._init_left, self._init_top, self._init_right, self._init_bottom = self._getWindowRect()
         self._init_width = self._init_right - self._init_left
         self._init_height = self._init_bottom - self._init_top
@@ -163,10 +162,12 @@ class LinuxWindow(BaseWindow):
 
     def minimize(self, wait=False):
         """Minimizes this window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was minimized"""
         if not self.isMinimized:
             if "GNOME" in self._get_wm():
-                # Temporary hack.
+                # Temporary hack. Tested OK on Ubuntu/Unity
                 self.activate(wait=True)
                 pyautogui.hotkey('winleft', 'h')
                 retries = 0
@@ -187,7 +188,9 @@ class LinuxWindow(BaseWindow):
 
     def maximize(self, wait=False):
         """Maximizes this window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was maximized"""
         if not self.isMaximized:
             EWMH.setWmState(self._hWnd, ACTION_SET, STATE_MAX_VERT, STATE_MAX_HORZ)
             EWMH.display.flush()
@@ -199,7 +202,9 @@ class LinuxWindow(BaseWindow):
 
     def restore(self, wait=False):
         """If maximized or minimized, restores the window to it's normal size.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was restored"""
         # Activation is enough to restore a minimized window in GNOME/Unity, CINNAMON and LXDE
         self.activate(wait=wait)
         if self.isMaximized:
@@ -213,7 +218,9 @@ class LinuxWindow(BaseWindow):
 
     def hide(self, wait=False):
         """If hidden or showing, hides the window from screen and title bar.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was hidden (unmapped)"""
         win = DISP.create_resource_object('window', self._hWnd)
         win.unmap_sub_windows()
         DISP.sync()
@@ -227,7 +234,9 @@ class LinuxWindow(BaseWindow):
 
     def show(self, wait=False):
         """If hidden or showing, shows the window on screen and in title bar.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window is showing (mapped)"""
         win = DISP.create_resource_object('window', self._hWnd)
         win.map()
         DISP.sync()
@@ -241,7 +250,9 @@ class LinuxWindow(BaseWindow):
 
     def activate(self, wait=False):
         """Activate this window and make it the foreground (focused) window.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was activated"""
         if "arm" in platform.platform():
             EWMH.setWmState(self._hWnd, ACTION_SET, STATE_ABOVE, STATE_NULL)
         else:
@@ -255,14 +266,18 @@ class LinuxWindow(BaseWindow):
 
     def resize(self, widthOffset, heightOffset, wait=False):
         """Resizes the window relative to its current size.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time)
+
+        Returns ''True'' if window was resized to the given size"""
         return self.resizeTo(self.width + widthOffset, self.height + heightOffset, wait)
 
     resizeRel = resize  # resizeRel is an alias for the resize() method.
 
     def resizeTo(self, newWidth, newHeight, wait=False):
         """Resizes the window to a new width and height.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was resized to the given size"""
         EWMH.setMoveResizeWindow(self._hWnd, x=self.left, y=self.top, w=newWidth, h=newHeight)
         EWMH.display.flush()
         retries = 0
@@ -273,14 +288,18 @@ class LinuxWindow(BaseWindow):
 
     def move(self, xOffset, yOffset, wait=False):
         """Moves the window relative to its current position.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position"""
         return self.moveTo(self.left + xOffset, self.top + yOffset, wait)
 
     moveRel = move  # moveRel is an alias for the move() method.
 
     def moveTo(self, newLeft, newTop, wait=False):
         """Moves the window to new coordinates on the screen.
-        Use 'wait' option to confirm action requested (in a reasonable time)."""
+        Use 'wait' option to confirm action requested (in a reasonable time).
+
+        Returns ''True'' if window was moved to the given position"""
         if newLeft < 0 or newTop < 0:  # Xlib/EWMH won't accept negative positions
             return False
         EWMH.setMoveResizeWindow(self._hWnd, x=newLeft, y=newTop, w=self.width, h=self.height)
@@ -291,16 +310,11 @@ class LinuxWindow(BaseWindow):
             time.sleep(WAIT_DELAY * retries)
         return self.left == newLeft and self.top == newTop
 
-    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight, wait=False):
-        if newLeft < 0 or newTop < 0:  # Xlib/EWMH won't accept negative positions
-            return False
-        EWMH.setMoveResizeWindow(self._hWnd, x=newLeft, y=newTop, w=newWidth, h=newHeight)
-        EWMH.display.flush()
-        retries = 0
-        while wait and retries < WAIT_ATTEMPTS and (self.left != newLeft or self.top != newTop):
-            retries += 1
-            time.sleep(WAIT_DELAY * retries)
-        return self.left == newLeft and self.top == newTop
+    def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight):
+        if newLeft >= 0 and newTop >= 0:  # Xlib/EWMH won't accept negative positions
+            EWMH.setMoveResizeWindow(self._hWnd, x=newLeft, y=newTop, w=newWidth, h=newHeight)
+            EWMH.display.flush()
+        return
 
     @property
     def isMinimized(self):
@@ -325,13 +339,13 @@ class LinuxWindow(BaseWindow):
 
     @property
     def visible(self):
-        """Return ``True`` if the window is currently visible."""
+        """Returns ``True`` if the window is currently visible."""
         win = DISP.create_resource_object('window', self._hWnd)
         return win.get_attributes().map_state == Xlib.X.IsViewable
 
     @property
     def _isMapped(self):
-        """Return ``True`` if the window is currently mapped."""
+        # Returns ``True`` if the window is currently mapped
         win = DISP.create_resource_object('window', self._hWnd)
         return win.get_attributes().map_state != Xlib.X.IsUnmapped
 
