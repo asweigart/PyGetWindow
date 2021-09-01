@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "7784f0f6975b90e48343668fa565820995cdf41c5caf637ef05ca7c417bf7005"
+            "sha256": "459d85ee731cb3aba066d3fc4c4a5408f6f9461b8b6ba16e3912a9408b5c528a"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.7"
+            "python_version": "3.9"
         },
         "sources": [
             {
@@ -16,26 +16,15 @@
         ]
     },
     "default": {
-        "win32core": {
-            "hashes": [
-                "sha256:57ebeea7ba14117713ddca3db6bdca57703b81792c5c7f743f35b9313461532a",
-                "sha256:88e293e959dc5c50af3a9053cc7ac35273936080752316d4231b345cbc3c1b54",
-                "sha256:92fafd29427a9f1cacba2017f2a24ff31cf09c2e57ac6990703248ab4bb460d1",
-                "sha256:934ab3759403909327c8c8c85d3cee15da67282311f328591d74a2f25260b0f6",
-                "sha256:d2132324bd38704f040fbd9e23bc1ecb0f4bcb51354e9f2a93135bdc336d667d",
-                "sha256:face47b84e63fd9e9d8457d5917ca83b3d1ceaf07503ab3ca9ef426a2ee119f9"
-            ],
-            "version": "==221.36"
+        "pygetwindow": {
+            "editable": true,
+            "path": "."
         },
-        "win32gui": {
+        "pyrect": {
             "hashes": [
-                "sha256:1578249c3bffca9f606749e99f0526c4b976f05727640e2e894d446f23d31ccb",
-                "sha256:286553c910cfbe99826260863b18d9633836e0399320a58d52f844c749307bdf",
-                "sha256:ec864ef3dbcac00410268f80e39df110e41518afc8810cad00125be114ea1941",
-                "sha256:f1ebf9c96f3726af207fd12882a7625974c22988ae08a29c34c693e23eb8a7c6"
+                "sha256:3b2fa7353ce32a11aa6b0a15495968d2a763423c8947ae248b92c037def4e202"
             ],
-            "index": "pypi",
-            "version": "==221.6"
+            "version": "==0.1.4"
         }
     },
     "develop": {}

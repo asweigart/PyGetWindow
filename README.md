@@ -67,3 +67,8 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     (142, 110)
     >>> notepadWindow.close()
     >>>
+
+Support
+-------
+
+If you find this project helpful and would like to support its development, [consider donating to its creator on Patreon](https://www.patreon.com/AlSweigart).
