@@ -38,7 +38,7 @@ def test_basic():
         subprocess.Popen(['open', '-a', 'TextEdit', 'test.txt'])
         time.sleep(5)
 
-        testWindows = [pygetwindow.getActiveWindow()]
+        testWindows = pygetwindow.getWindowsWithTitle('test.txt')
         assert len(testWindows) == 1
 
         npw = testWindows[0]  # testWindows[0] is the selected window
@@ -307,7 +307,7 @@ def basic_macOS(npw):
     assert npw is not None
 
     wait = True
-    timelap = 0.0
+    timelap = 3.00
 
     # Test maximize/minimize/restore.
     if npw.isMaximized:  # Make sure it starts un-maximized
@@ -316,17 +316,22 @@ def basic_macOS(npw):
     assert not npw.isMaximized
 
     npw.maximize(wait=wait)
+    time.sleep(timelap)
     assert npw.isMaximized
     npw.restore(wait=wait)
+    time.sleep(timelap)
     assert not npw.isMaximized
 
     npw.minimize(wait=wait)
+    time.sleep(timelap)
     assert npw.isMinimized
     npw.restore(wait=wait)
+    time.sleep(timelap)
     assert not npw.isMinimized
 
     # Test resizing
     npw.resizeTo(600, 400, wait=wait)
+    time.sleep(timelap)
     assert npw.size == (600, 400)
     assert npw.width == 600
     assert npw.height == 400

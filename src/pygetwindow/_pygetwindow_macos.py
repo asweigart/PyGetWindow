@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -33,8 +34,8 @@ def getActiveWindow(app=None):
             if win[Quartz.kCGWindowLayer] == 0:
                 return MacOSWindow(app, win)
     else:
-        for win in getAllWindows(app):  # .keyWindow() not working?!?!?!
-            return MacOSNSWindow(app, win)
+        for win in getAllWindows(app):
+            return win
     return None
 
 
@@ -61,7 +62,6 @@ def getWindowsWithTitle(title, app=None):
     # DOUBT: Should the "owner" name (app to which the window belongs to) be included?
     windows = []
     if not app:
-        # On Catalina, WindowInfo objects do not include kCGWindowName, so this ugly hack is required
         activeApps = _getAllApps()
         appwindows = _getAllWindows(app)
         for app in activeApps:
@@ -69,6 +69,7 @@ def getWindowsWithTitle(title, app=None):
                 if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
                     name = win.get(Quartz.kCGWindowName, "")
                     if not name:
+                        # On Catalina, WindowInfo objects do not include kCGWindowName, so this ugly hack is required
                         found = _getWindowByTitle(win[Quartz.kCGWindowOwnerName], title)
                         if found:
                             name = title
@@ -76,7 +77,7 @@ def getWindowsWithTitle(title, app=None):
                         windows.append(MacOSWindow(app, win, title))
     else:
         for win in app.orderedWindows():
-            w = MacOSWindow(app, win)
+            w = MacOSNSWindow(app, win)
             if w.title == title:
                 windows.append(w)
     return windows
@@ -102,6 +103,7 @@ def getAllTitles(app=None):
 
 def getAllWindows(app=None):
     """Returns a list of window objects for all visible windows."""
+    # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
     # It is restricted to layer 0, which should be the "user layer"
     windows = []
     if not app:
@@ -112,13 +114,12 @@ def getAllWindows(app=None):
                 if win[Quartz.kCGWindowLayer] == 0 and win[Quartz.kCGWindowOwnerPID] == app.processIdentifier():
                     windows.append(MacOSWindow(app, win))
     else:
-        for win in app.orderedWindows():
+        for win in app.orderedWindows():  # .keyWindow() / .mainWindow() not working?!?!?!
             windows.append(MacOSNSWindow(app, win))
     return windows
 
 
 def _getActiveWindow(app=None):
-    # Source: https://stackoverflow.com/questions/53237266/how-can-i-minimize-maximize-windows-in-macos-with-the-cocoa-api-from-a-python-sc
     activeApps = _getAllApps()
     windows = _getAllWindows()
     for app in activeApps:
@@ -134,6 +135,7 @@ def _getAllApps():
 
 
 def _getAllWindows(excludeDesktop=True, screenOnly=True):
+    # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
     flags = Quartz.kCGWindowListExcludeDesktopElements if excludeDesktop else 0 | \
             Quartz.kCGWindowListOptionOnScreenOnly if screenOnly else 0
     return Quartz.CGWindowListCopyWindowInfo(flags, Quartz.kCGNullWindowID)
@@ -157,6 +159,12 @@ class MacOSWindow(BaseWindow):
             title = self.altTitle()
         self.Title = title
         self._setupRectProperties()
+        v = platform.mac_ver()[0].split(".")
+        ver = float(v[0]+"."+v[1])
+        print(platform.mac_ver(), ver)
+        self.use_zoom = ver <= 10.10
+        print(self.use_zoom)
+
 
     def _getWindowRect(self):
         """Returns a rect of window position and size (left, top, right, bottom).
@@ -214,11 +222,18 @@ class MacOSWindow(BaseWindow):
         Returns ''True'' if window was maximized"""
         # Thanks to: macdeport (for this piece of code, his help, and the moral support!!!)
         if not self.isMaximized:
-            cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
-                                        try
-                                            set value of attribute "AXFullScreen" of (first window whose name is "%s") to true
-                                        end try
-                                    end tell'""" % (self._app.localizedName(), self.title)
+            if self.use_zoom:
+                cmd = """osascript -e 'tell application "System Events" to tell application "%s" 
+                                            try
+                                                tell (first window whose name is "%s") to set zoomed to true
+                                            end try
+                                        end tell'""" % (self._app.localizedName(), self.title)
+            else:
+                cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
+                                            try
+                                                set value of attribute "AXFullScreen" of (first window whose name is "%s") to true
+                                            end try
+                                        end tell'""" % (self._app.localizedName(), self.title)
             os.system(cmd)
             retries = 0
             while wait and retries < WAIT_ATTEMPTS and not self.isMaximized:
@@ -233,14 +248,21 @@ class MacOSWindow(BaseWindow):
         Returns ''True'' if window was restored"""
         self.activate(wait=True)
         if self.isMaximized:
-            cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
-                                        try
-                                            set value of attribute "AXFullScreen" of window 1 to false
-                                        end try
-                                    end tell'""" % self._app.localizedName()
+            if self.use_zoom:
+                cmd = """osascript -e 'tell application "System Events" to tell application "%s" 
+                                            try
+                                                tell first window to set zoomed to false
+                                            end try
+                                        end tell'""" % self._app.localizedName()
+            else:
+                cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
+                                            try
+                                                set value of attribute "AXFullScreen" of (first window whose name is "%s") to false
+                                            end try
+                                        end tell'""" % (self._app.localizedName(), self.title)
             os.system(cmd)
         if self.isMinimized:
-            cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
                                         try
                                             set value of attribute "AXMinimized" of (first window whose name is "%s") to false
                                         end try
@@ -282,13 +304,21 @@ class MacOSWindow(BaseWindow):
         Use 'wait' option to confirm action requested (in a reasonable time).
 
         Returns ''True'' if window was activated"""
-        self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
-        # TODO: Why these two options do not work sometimes: "set index of (first window whose name is "%s") to 1"
-        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
-                                    try
-                                        perform action "AXRaise" of (first window whose name is "%s")
-                                    end try
-                                end tell'""" % (self._app.localizedName(), self.title)
+        # self._app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        if self.use_zoom:
+            cmd = """osascript -e 'tell application "System Events" to tell application "%s"
+                                        try
+                                            activate
+                                            tell (first window whose name is "%s") to set index to 1
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), self.title)
+        else:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        try
+                                            activate
+                                            perform action "AXRaise" of (first window whose name is "%s")
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), self.title)
         os.system(cmd)
         retries = 0
         while wait and retries < WAIT_ATTEMPTS and not self.isActive:
@@ -386,17 +416,30 @@ class MacOSWindow(BaseWindow):
     @property
     def isMaximized(self):
         """Returns ``True`` if the window is currently maximized (fullscreen)."""
-        cmd = """osascript -e 'tell application "System Events" to tell process "%s" 
-                                    set isFull to false
-                                    set winName to ""
-                                    try
-                                        set isFull to value of attribute "AXFullScreen" of window 1
-                                        if isFull then
-                                            set winName to name of window 1
-                                        end if
-                                    end try
-                                end tell
-                                return (winName as string)'""" % self._app.localizedName()
+        if self.use_zoom:
+            cmd = """osascript -e 'tell application "System Events" to tell application "%s" 
+                                        set isFull to false
+                                        set winName to ""
+                                        try
+                                            tell window 1 to set isFull to zoomed 
+                                            if isFull then
+                                                set winName to name of window 1
+                                            end if
+                                        end try
+                                    end tell
+                                    return (winName as string)'""" % self._app.localizedName()
+        else:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
+                                        set isFull to false
+                                        set winName to ""
+                                        try
+                                            set isFull to (get value of attribute "AXFullScreen" of window 1) 
+                                            if isFull then
+                                                set winName to name of window 1
+                                            end if
+                                        end try
+                                    end tell
+                                    return (winName as string)'""" % self._app.localizedName()
         ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
         return ret == self.title
 
@@ -439,7 +482,6 @@ class MacOSWindow(BaseWindow):
     @property
     def title(self):
         """Returns the window title as a string."""
-        # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
         # Should the owner (app) be added?
         # return self._hWnd.get([Quartz.kCGWindowOwnerName], '') + " - " + self._hWnd.get(Quartz.kCGWindowName, '')
         return self.Title

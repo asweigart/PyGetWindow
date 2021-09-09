@@ -348,6 +348,7 @@ if sys.platform == "darwin":
     )
 
     Window = MacOSWindow
+    NSWindow = MacOSNSWindow
 elif sys.platform == "win32":
     from ._pygetwindow_win import (
         Win32Window,

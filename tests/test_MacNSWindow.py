@@ -4,6 +4,8 @@
 # Lawrence Akka - https://sourceforge.net/p/pyobjc/mailman/pyobjc-dev/thread/0B4BC391-6491-445D-92D0-7B1CEF6F51BE%40me.com/#msg27726282
 
 # We need to import the relevant object definitions from PyObjC
+
+import sys
 import time
 from AppKit import *
 from PyObjCTools import AppHelper
@@ -21,8 +23,11 @@ class Delegate(NSObject):
     def getDemoMode(self):
         return self.demoMode
 
-    def toggleDemoMode(self):
-        self.demoMode = not self.getDemoMode()
+    def setDemoMode(self):
+        self.demoMode = True
+
+    def unsetDemoMode(self):
+        self.demoMode = False
 
     def applicationDidFinishLaunching_(self, aNotification):
         '''Called automatically when the application has launched'''
@@ -34,10 +39,15 @@ class Delegate(NSObject):
         if self.demoMode:
 
             if not self.npw:
-                windows = pygetwindow.getAllWindows(NSApp())
-                self.npw = windows[0]
+                self.npw = pygetwindow.getActiveWindow(NSApp())
 
-            wait = False
+                if self.npw:
+                    print("ACTIVE WINDOW:", self.npw.title)
+                else:
+                    print("NO ACTIVE WINDOW FOUND")
+                    return
+
+            wait = True
             timelap = 0.0
 
             self.npw.maximize(wait=wait)
@@ -209,7 +219,7 @@ def demo():
     # Objective C constructors below, because Delegate
     # is a subclass of an Objective C class, NSObject
     delegate = Delegate.alloc().init()
-    delegate.toggleDemoMode()
+    delegate.setDemoMode()
     # Tell the application which delegate object to use.
     a.setDelegate_(delegate)
 
