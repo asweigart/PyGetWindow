@@ -1,4 +1,5 @@
 pyrect
+fuzzywuzzy
 ctypes; sys_platform == 'win32'
 pyautogui; sys_platform == 'linux'
 xlib; sys_platform == 'linux'

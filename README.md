@@ -4,8 +4,7 @@ PyGetWindow
 A simple, cross-platform module for obtaining GUI information on and controlling application's windows.
 
 
-Still under development. Currently only Windows platofrm is fully implemented, while Linux and MacOS platforms are in a Preliminary/Experimental status. 
-If you want to help contribute, please contact al@inventwithpython.com! 
+Still under development. Currently only the Windows platform is implemented. If you want to help contribute, please contact al@inventwithpython.com!
 
 
 Install
@@ -69,4 +68,7 @@ PyGetWindow has functions for obtaining ``Window`` objects from a place on the s
     >>> notepadWindow.close()
     >>>
 
-IMPORTANT NOTICE: On MacOS platforms, full-support depends on target app scripting capabilities. If the app is not scriptable, move, resize, moveTo and resizeTo methods will not work. All other methods should work fine.
+Support
+-------
+
+If you find this project helpful and would like to support its development, [consider donating to its creator on Patreon](https://www.patreon.com/AlSweigart).
