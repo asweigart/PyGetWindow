@@ -14,3 +14,4 @@ lexxish https://github.com/lexxish
 Randall White
 Ronald Oussoren
 Steve Newell https://github.com/newellista
+Angel L. Escribano https://github.com/Kalmat
