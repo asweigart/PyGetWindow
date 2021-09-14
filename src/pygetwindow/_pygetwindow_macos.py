@@ -6,17 +6,15 @@ import platform
 import subprocess
 import sys
 import time
-from fuzzywuzzy import fuzz
+import numpy as np
 from AppKit import *
 import Quartz
 from pygetwindow import PyGetWindowException, pointInRect, BaseWindow, Rect, Point, Size
 
 """ 
 IMPORTANT NOTICE:
-    There aren't many mechanisms to manage other apps/windows on MacOS, so this is based mainly on Apple Scripts.
-    For non-scriptable apps, so some methods and properties might not work.
-    The rest of methods should work fine in most cases. 
-    In case you need full-support, granting your application in Accessibility options could fix it (or not)
+    This script uses NSWindow objects, so you have to pass the app object (NSApp()) when instantiating the class.
+    To manage other apps windows, this script uses Apple Script, so grant permissions on Security & Privacy -> Accessibility
 """
 
 WS = NSWorkspace.sharedWorkspace()
@@ -24,6 +22,37 @@ WS = NSWorkspace.sharedWorkspace()
 #          Activate wait option if you need to effectively know if/when action has been performed
 WAIT_ATTEMPTS = 10
 WAIT_DELAY = 0.025  # Will be progressively increased on every retry
+
+
+def _levenshtein(seq1, seq2):
+    # fuzzywuzzy throws a warning if python-levenshtein is not installed
+    # textdistance is not available on Python2
+    # https://stackabuse.com/levenshtein-distance-and-text-similarity-in-python/
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros((size_x, size_y))
+    for x in range(size_x):
+        matrix[x, 0] = x
+    for y in range(size_y):
+        matrix[0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x - 1] == seq2[y - 1]:
+                matrix[x, y] = min(
+                    matrix[x-1, y] + 1,
+                    matrix[x-1, y - 1],
+                    matrix[x, y - 1] + 1
+                )
+            else:
+                matrix[x, y] = min(
+                    matrix[x-1, y] + 1,
+                    matrix[x-1, y - 1] + 1,
+                    matrix[x, y - 1] + 1
+                )
+    # Modified to return a custom similarity ratio (adding a weight of 1 for replacements, instead of 2)
+    ret = matrix[size_x - 1, size_y - 1]
+    return 1 - ret / max(size_x - 1, size_y - 1)
 
 
 def getActiveWindow(app=None):
@@ -69,23 +98,21 @@ def getWindowsAt(x, y, app=None):
 
 def getWindowsWithTitle(title, app=None):
     """Returns a list of window objects matching the given title or an empty list."""
-    # DOUBT: Should the "owner" name (app to which the window belongs to) be included?
     matches = []
     windows = getAllWindows(app)
     for win in windows:
-        if fuzz.WRatio(win.title, title) > 90:
+        if _levenshtein(win.title, title) > 0.9:
             matches.append(win)
     return matches
 
 
 def getAllTitles(app=None):
     """Returns a list of strings of window titles for all visible windows."""
-    return [win.title for win in getAllWindows()]
+    return [win.title for win in getAllWindows(app)]
 
 
 def getAllWindows(app=None):
     """Returns a list of window objects for all visible windows."""
-    # Source: https://stackoverflow.com/questions/53237278/obtain-list-of-all-window-titles-on-macos-from-a-python-script/53985082#53985082
     windows = []
     if not app:
         activeApps = _getAllApps()
@@ -95,7 +122,7 @@ def getAllWindows(app=None):
             appTitles = []
             for item in winTitles:
                 if item[0] == app.localizedName():
-                    appTitles.append(item[0])
+                    appTitles.append(item[1])
             filteredApps.append([app, appTitles])
         for app in filteredApps:
             appWindows = _getAllAppWindows(app[0])
@@ -103,6 +130,8 @@ def getAllWindows(app=None):
             for title in app[1]:
                 if i < len(appWindows):
                     windows.append(MacOSWindow(app[0], appWindows[i], title))
+                else:
+                    break
                 i += 1
     else:
         for win in app.orderedWindows():
@@ -115,15 +144,15 @@ def _getWindowTitles():
                                 set winNames to {}
                                 repeat with p in every process whose background only is false
                                     repeat with w in every window of p
-                                        set end of winNames to {name of p, name of w & "|"}
+                                        set end of winNames to {name of p, name of w}
                                     end repeat
                                 end repeat
                             end tell
                             return winNames'"""
-    ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip().split("|, ")
+    ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip().split(", ")
     retList = []
-    for item in ret:
-        subList = item.split(", ")
+    for i in range(len(ret)-1):
+        subList = [ret[i], ret[i + 1]]
         retList.append(subList)
     return retList
 
@@ -162,19 +191,37 @@ class MacOSWindow(BaseWindow):
         self._setupRectProperties()
         v = platform.mac_ver()[0].split(".")
         ver = float(v[0]+"."+v[1])
+        # On Yosemite and below we need to use Zoom instead of FullScreen to maximize windows
         self.use_zoom = (ver <= 10.10)
 
     def _getWindowRect(self):
         """Returns a rect of window position and size (left, top, right, bottom).
         It follows ctypes format for compatibility"""
         w = [0, 0, 0, 0]
-        for win in _getAllAppWindows(self._app):
-            if win[Quartz.kCGWindowNumber] == self.winNumber:
-                bounds = win[Quartz.kCGWindowBounds]
-                w = [bounds["X"], bounds["Y"], bounds["Width"], bounds["Height"]]
+        winSeq = self._getWindowIndex()
+        if winSeq > 0:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        set winIndex to %i
+                                        set appBounds to {0, 0, 0, 0}
+                                        try
+                                            set appPos to (get position of window winIndex)
+                                            set appSize to (get size of window winIndex)
+                                            set appBounds to {appPos, appSize}
+                                        end try
+                                    end tell
+                                    return appBounds'""" % (self._app.localizedName(), winSeq)
+            w = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip().split(", ")
+        # This solution is smarter and faster, but it seems to take some time to update window info
+        # TODO: check if this always works on "real" (non-virtual) installs
+        # for win in _getAllAppWindows(self._app):
+        #     if win[Quartz.kCGWindowNumber] == self.winNumber:
+        #         bounds = win[Quartz.kCGWindowBounds]
+        #         w = [bounds["X"], bounds["Y"], bounds["Width"], bounds["Height"]]
         return Rect(int(w[0]), int(w[1]), int(w[0]) + int(w[2]), int(w[1]) + int(w[3]))
 
     def _getWindowIndex(self):
+        # Window index can be tricky for maximized and unmapped windows
+        # Using window name instead (fuzzy comparison is needed for apps like Terminal, which changes name when resized)
         i = 0
         for win in _getAllAppWindows(self._app):
             i += 1
@@ -200,13 +247,13 @@ class MacOSWindow(BaseWindow):
                                         end try
                                     end tell'""" % (self._app.localizedName(), winSeq)
             os.system(cmd)
+        return self._getWindowIndex() < 0
 
     def minimize(self, wait=False):
         """Minimizes this window.
         Use 'wait' option to confirm action requested (in a reasonable time).
 
         Returns ''True'' if window was minimized"""
-        # https://apple.stackexchange.com/questions/35189/is-there-a-way-to-minimize-open-windows-from-the-command-line-in-os-x-lion
         winSeq = self._getWindowIndex()
         if winSeq > 0:
             cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
@@ -303,10 +350,10 @@ class MacOSWindow(BaseWindow):
                                      end tell'""" % (self._app.localizedName(), winSeq)
             os.system(cmd)
             retries = 0
-            while wait and retries < WAIT_ATTEMPTS and self.visible:  # and self._isMapped:
+            while wait and retries < WAIT_ATTEMPTS and self._isMapped:
                 retries += 1
                 time.sleep(WAIT_DELAY * retries)
-        return not self.visible
+        return not self._isMapped
 
     def show(self, wait=False):
         """If hidden or showing, shows the window on screen and in title bar.
@@ -324,10 +371,10 @@ class MacOSWindow(BaseWindow):
                                  end tell'""" % (self._app.localizedName(), self.title)
         os.system(cmd)
         retries = 0
-        while wait and retries < WAIT_ATTEMPTS and self.visible:  # and self._isMapped:
+        while wait and retries < WAIT_ATTEMPTS and not self._isMapped:
             retries += 1
             time.sleep(WAIT_DELAY * retries)
-        return self.visible
+        return self._isMapped
 
     def activate(self, wait=False):
         """Activate this window and make it the foreground (focused) window.
@@ -369,17 +416,19 @@ class MacOSWindow(BaseWindow):
 
         Returns ''True'' if window was resized to the given size
         WARNING: Will not work if target app is not scriptable"""
-        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
-                                    try
-                                        set size of (first window whose name is "%s") to {%i, %i}
-                                    end try
-                                end tell'""" % \
-              (self._app.localizedName(), self.title, newWidth, newHeight)
-        os.system(cmd)
-        retries = 0
-        while wait and retries < WAIT_ATTEMPTS and self.width != newWidth and self.height != newHeight:
-            retries += 1
-            time.sleep(WAIT_DELAY * retries)
+        # https://apple.stackexchange.com/questions/350256/how-to-move-mac-os-application-to-specific-display-and-also-resize-automatically
+        winSeq = self._getWindowIndex()
+        if winSeq > 0:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        try
+                                            set size of window %i to {%i, %i}
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), winSeq, newWidth, newHeight)
+            os.system(cmd)
+            retries = 0
+            while wait and retries < WAIT_ATTEMPTS and self.width != newWidth and self.height != newHeight:
+                retries += 1
+                time.sleep(WAIT_DELAY * retries)
         return self.width == newWidth and self.height == newHeight
 
     def move(self, xOffset, yOffset, wait=False):
@@ -398,33 +447,40 @@ class MacOSWindow(BaseWindow):
 
         Returns ''True'' if window was moved to the given position
         WARNING: Will not work if target app is not scriptable"""
-        cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
-                                    try
-                                        set position of (first window whose name is "%s") to {%i, %i}
-                                    end try
-                                end tell'""" % \
-              (self._app.localizedName(), self.title, newLeft, newTop)
-        os.system(cmd)
-        retries = 0
-        while wait and retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop:
-            retries += 1
-            time.sleep(WAIT_DELAY * retries)
+        # https://apple.stackexchange.com/questions/350256/how-to-move-mac-os-application-to-specific-display-and-also-resize-automatically
+        winSeq = self._getWindowIndex()
+        if winSeq > 0:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        try
+                                            set position of window %i to {%i, %i}
+                                        end try
+                                    end tell'""" % (self._app.localizedName(), winSeq, newLeft, newTop)
+            os.system(cmd)
+            retries = 0
+            while wait and retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop:
+                retries += 1
+                time.sleep(WAIT_DELAY * retries)
         return self.left == newLeft and self.top == newTop
 
     def _moveResizeTo(self, newLeft, newTop, newWidth, newHeight):
-        # https://stackoverflow.com/questions/16598551/os-x-move-window-from-python
-        # https://apple.stackexchange.com/questions/350256/how-to-move-mac-os-application-to-specific-display-and-also-resize-automatically
-        cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
-                                    set winName to "%s"
-                                    try
-                                        set position of (first window whose name is winName) to {%i, %i}
-                                    end try
-                                    try
-                                        set size of (first window whose name is winName) to {%i, %i}
-                                    end try
-                                end tell'""" % \
-              (self._app.localizedName(), self.title, newLeft, newTop, newWidth, newHeight)
-        os.system(cmd)
+        winSeq = self._getWindowIndex()
+        if winSeq > 0:
+            cmd = """osascript -e 'tell application "System Events" to tell application process "%s"
+                                        set winIndex to %i
+                                        try
+                                            set position of window winIndex to {%i, %i}
+                                        end try
+                                        try
+                                            set size of window winIndex to {%i, %i}
+                                        end try
+                                    end tell'""" % \
+                  (self._app.localizedName(), winSeq, newLeft, newTop, newWidth, newHeight)
+            os.system(cmd)
+            retries = 0
+            while retries < WAIT_ATTEMPTS and self.left != newLeft and self.top != newTop and \
+                    self.width != newWidth and self.height != newHeight:
+                retries += 1
+                time.sleep(WAIT_DELAY * retries)
         return
 
     @property
@@ -475,27 +531,19 @@ class MacOSWindow(BaseWindow):
                                     end tell
                                     return winName'""" % self._app.localizedName()
         ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
-        return fuzz.WRatio(ret, self.title) > 90
+        return _levenshtein(ret, self.title) > 0.9
+
 
     @property
     def isActive(self):
         """Returns ``True`` if the window is currently the active, foreground window."""
-        ret = ""
         if self._app.isActive():
-            cmd = """osascript -e 'tell application "System Events" to tell application process "%s" 
-                                        set winName to ""
-                                        try
-                                            set winName to name of window 1
-                                        end try
-                                    end tell
-                                    return winName'""" % self._app.localizedName()
-            ret = subprocess.check_output(cmd, shell=True).decode(encoding="utf-8").strip()
-        return fuzz.WRatio(ret, self.title) > 90
+            winSeq = self._getWindowIndex()
+            return winSeq == 1
+        return False
 
     @property
     def title(self):
-        # Should the owner (app) be added?
-        # return self._app.localizedName() + "|>" + self._hWnd.get(Quartz.kCGWindowName, '')
         name = self._hWnd.get(Quartz.kCGWindowName, '')
         if not name:
             winSeq = self._getWindowIndex()
@@ -523,7 +571,7 @@ class MacOSWindow(BaseWindow):
 
     @property
     def _isMapped(self):
-        # Returns ``True`` if the window is currently visible (minimized windows are also visible)
+        # Returns ``True`` if the window is currently mapped by WM (minimized windows also have visible set to true)
         ret = "false"
         winSeq = self._getWindowIndex()
         if winSeq > 0:
@@ -718,7 +766,6 @@ class MacOSNSWindow(BaseWindow):
     @property
     def title(self):
         """Returns the window title as a string."""
-        # Should the owner (app) be added?
         return self._hWnd.title()
 
     @property

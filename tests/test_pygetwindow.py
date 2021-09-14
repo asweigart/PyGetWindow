@@ -364,7 +364,7 @@ def basic_macOS(npw):
 
     # Move via the properties
     npw.resizeTo(601, 401, wait=wait)
-    npw.moveTo(51, 25, wait=wait)
+    npw.moveTo(100, 250, wait=wait)
 
     npw.left = 200
     time.sleep(timelap)

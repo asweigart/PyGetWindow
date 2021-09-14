@@ -49,7 +49,6 @@ HINT_STATE_ICONIC = 3
 
 def getActiveWindow():
     """Returns a Window object of the currently active Window or None."""
-
     win_id = EWMH.getActiveWindow()
     if win_id:
         return LinuxWindow(win_id)
@@ -59,7 +58,6 @@ def getActiveWindow():
 
 def getActiveWindowTitle():
     """Returns a string of the title text of the currently active (focused) Window."""
-
     win = getActiveWindow()
     if win:
         return win.title
@@ -81,7 +79,6 @@ def getWindowsAt(x, y):
 
 def getWindowsWithTitle(title):
     """Returns a Window object list with the given name."""
-
     matches = []
     for win in getAllWindows():
         if win.title == title:
@@ -105,16 +102,7 @@ class LinuxWindow(BaseWindow):
     def __init__(self, hWnd):
         self._hWnd = hWnd
         self._setupRectProperties()
-        # Store initial Window parameters to allow reset and other actions
-        self._saveWindowInitValues()
-
-    def _get_frame(self, hWnd):
-        """Returns the last ancestor (before root) of a given window."""
-        # https://stackoverflow.com/questions/12775136/get-window-position-and-size-in-python-with-xlib - mgalgs
-        frame = hWnd
-        while frame.query_tree().parent != ROOT:
-            frame = frame.query_tree().parent
-        return frame
+        # self._saveWindowInitValues()  # Store initial Window parameters to allow reset and other actions
 
     def _getWindowRect(self):
         """Returns a rect of window position and size (left, top, right, bottom).
@@ -167,7 +155,7 @@ class LinuxWindow(BaseWindow):
         Returns ''True'' if window was minimized"""
         if not self.isMinimized:
             if "GNOME" in self._get_wm():
-                # Temporary hack. Tested OK on Ubuntu/Unity
+                # Keystroke hack. Tested OK on Ubuntu/Unity
                 self.activate(wait=True)
                 pyautogui.hotkey('winleft', 'h')
                 retries = 0
