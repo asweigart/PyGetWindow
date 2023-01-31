@@ -294,10 +294,12 @@ class Win32Window(BaseWindow):
         """Returns the window title as a string."""
         textLenInCharacters = ctypes.windll.user32.GetWindowTextLengthW(self._hWnd)
         stringBuffer = ctypes.create_unicode_buffer(textLenInCharacters + 1) # +1 for the \0 at the end of the null-terminated string.
+        ctypes.windll.kernel32.SetLastError(0)
         ctypes.windll.user32.GetWindowTextW(self._hWnd, stringBuffer, textLenInCharacters + 1)
-
-        # TODO it's ambiguous if an error happened or the title text is just empty. Look into this later.
-        return stringBuffer.value
+        if ctypes.windll.kernel32.GetLastError() != 0:
+            _raiseWithLastError()
+        else:
+            return stringBuffer.value
 
     @property
     def visible(self):
